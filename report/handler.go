@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/kohmebot/plugin/v2"
 	"github.com/kohmebot/report/report/daily"
+	"github.com/sirupsen/logrus"
 	zero "github.com/wdvxdr1123/ZeroBot"
 	"slices"
 	"time"
@@ -59,5 +60,6 @@ func (p *PluginReport) BuildReport(group int64, t time.Time) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	logrus.Infof("req:%s\nresp:%s\n", req, res)
 	return res, nil
 }
