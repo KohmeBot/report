@@ -32,6 +32,10 @@ func (p *PluginReport) OnInit(engine plugin.Engine, env plugin.Env) error {
 	if err != nil {
 		return err
 	}
+	err = p.db.AutoMigrate(&daily.GroupDailyStat{})
+	if err != nil {
+		return err
+	}
 
 	p.invoker, err = chataisdk.NewChatAIInvoker(env)
 	if err != nil {
@@ -62,5 +66,5 @@ func (p *PluginReport) Name() string {
 }
 
 func (p *PluginReport) Version() string {
-	return "v0.0.1-alpha.3"
+	return "v0.0.1-alpha.4"
 }
