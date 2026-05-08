@@ -22,21 +22,31 @@ const System = `
 `
 
 const UserPrompt = `
-根据以下今日群聊数据，出具一份日报，直接发群里，不要有任何开场白。
+根据以下今日群聊数据，出具一份日报，直接发群里，不要有任何开场白和结束语。
 %s
 按以下格式输出，每段之间空一行：
 🔬 今日MVP鉴定
-选出今天存在感最强的1人，给一个从他今天行为提炼的专属称号（格式："昵称 · 称号"），然后用1-2句话说清楚他凭什么拿这个称号，必须引用他的原话作为证据。
-⚰️ 今日最惨鉴定
-从以下情况选一个最惨的：戳别人次数最多却没人理 / 发言全是短句被无视 / 凌晨独自发言无人回应 / @了很多人没人搭理。写1句鉴定结论，语气像法医验尸报告。
-🌡️ 今日群体诊断  
-根据高频词和整体数据，用一句话诊断今天全群的精神状态，格式类似"根据今日XX次'YY'的高频出现，本群集体症状为：……"，要听起来很荒诞但数据是真的。
+选今天存在感最强的1人。格式："昵称 · 专属称号"，称号必须从他今天的具体行为提炼（复读内容、孤独指数、连发次数、情绪特征都可以作为称号来源）。然后1-2句话说清楚凭什么，必须引用他的原话或具体数据作为证据。
+🩻 今日社交体检报告
+从以下异常指标里选最突出的1-2个，用体检报告的口吻写诊断结论：
+- 孤独指数异常（大量发言无人回应）
+- 复读症（同一句话说了N次）
+- 情绪异常（感叹号/问号爆表）
+- 词穷症（发言多但词汇量极低）
+- 连发综合征（多次60秒内爆发）
+- 社交寄生（被回复多但自己从不主动回复别人）
+格式："患者：昵称，症状：……，病因推测：……，建议：……"
+🌡️ 今日群体诊断
+根据高频词和整体数据，用一句话诊断今天全群的精神状态。
+格式："根据今日[具体数据]，本群集体症状为：[荒诞但合理的结论]"
+数据要真实，结论要荒诞。
 🎭 人物速写
-只写今日发言前3名，每人一行，格式：
-「昵称」从[时间段]开始，[具体行为描述，要用数据]，代表作：[引用原话]。结论：[一个字的评价，比如：惨/绝/稳]。
-👻 今日幽灵
-今日发言2条以下的人，集体一句话带过，要用"根据现有证据推测，他们今天可能在……"的格式，然后给一个荒诞但合理的推测。
-字数控制在400字以内，要让人看完想截图发朋友圈。
+只写今日发言前3名，每人一行：
+「昵称」[时间段]出没，[用2个具体数据描述行为]，代表作：[引用原话]。综合评价：[两个字]。
+👻 今日幽灵报告
+今日发言2条以下的人，一句话带过。
+格式："经侦查，以下成员今日行踪成谜：[名单]。根据现有证据推测，他们今天在[一个荒诞但合理的推测]。"
+字数450字以内，让人看完想截图。
 `
 
 // BuildPrompt 把DailyReport拼成喂给AI的结构化文本
@@ -99,34 +109,30 @@ func buildUserBlock(rank int, stat UserStat) string {
 	var sb strings.Builder
 
 	// 基础行
-	sb.WriteString(fmt.Sprintf("%d. %s —— 发言%d条\n",
-		rank, stat.Nickname, stat.MsgCount))
+	sb.WriteString(fmt.Sprintf("%d. %s —— 发言%d条\n", rank, stat.Nickname, stat.MsgCount))
 
-	// ---- 特征分析 ----
 	traits := []string{}
 
-	// 短句率：超过70%都是短句
-	shortRate := 0
+	// 短句率
 	if stat.MsgCount > 0 {
-		shortRate = stat.ShortCount * 100 / stat.MsgCount
-	}
-	switch {
-	case shortRate >= 80:
-		traits = append(traits, "发言80%是短句，惜字如金型选手")
-	case shortRate >= 50:
-		traits = append(traits, "说话偏短，能一个字绝不两个字")
+		shortRate := stat.ShortCount * 100 / stat.MsgCount
+		switch {
+		case shortRate >= 80:
+			traits = append(traits, fmt.Sprintf("发言%d%%是短句，惜字如金", shortRate))
+		case shortRate >= 50:
+			traits = append(traits, "说话偏短，能一个字绝不两个字")
+		}
 	}
 
 	// 图片/表情包
-	imgRate := 0
 	if stat.MsgCount > 0 {
-		imgRate = stat.ImageCount * 100 / stat.MsgCount
-	}
-	switch {
-	case imgRate >= 60:
-		traits = append(traits, fmt.Sprintf("发了%d张图，发言全靠图说话", stat.ImageCount))
-	case stat.ImageCount >= 5:
-		traits = append(traits, fmt.Sprintf("发了%d张图", stat.ImageCount))
+		imgRate := stat.ImageCount * 100 / stat.MsgCount
+		switch {
+		case imgRate >= 60:
+			traits = append(traits, fmt.Sprintf("发了%d张图占发言60%%+，靠图说话", stat.ImageCount))
+		case stat.ImageCount >= 5:
+			traits = append(traits, fmt.Sprintf("发了%d张图", stat.ImageCount))
+		}
 	}
 
 	// 戳一戳
@@ -134,7 +140,7 @@ func buildUserBlock(rank int, stat UserStat) string {
 	case stat.PokeCount >= 10:
 		traits = append(traits, fmt.Sprintf("戳了别人%d次，戳戳狂魔", stat.PokeCount))
 	case stat.PokeCount >= 3:
-		traits = append(traits, fmt.Sprintf("戳了别人%d次，有点无聊", stat.PokeCount))
+		traits = append(traits, fmt.Sprintf("戳了别人%d次", stat.PokeCount))
 	case stat.PokeCount == 1:
 		traits = append(traits, "戳了别人1次，不知道什么心态")
 	}
@@ -147,15 +153,91 @@ func buildUserBlock(rank int, stat UserStat) string {
 		traits = append(traits, fmt.Sprintf("@了别人%d次", stat.AtCount))
 	}
 
+	// 回复行为
+	switch {
+	case stat.ReplyCount >= 10:
+		traits = append(traits, fmt.Sprintf("引用回复了%d次，积极参与型或连环杠精", stat.ReplyCount))
+	case stat.ReplyCount >= 3:
+		traits = append(traits, fmt.Sprintf("引用回复了%d次", stat.ReplyCount))
+	}
+
+	// 被回复
+	switch {
+	case stat.BeReplied >= 5:
+		traits = append(traits, fmt.Sprintf("被别人引用回复或@%d次，发言有人接", stat.BeReplied))
+	case stat.BeReplied == 0 && stat.MsgCount >= 30:
+		traits = append(traits, "发了这么多条没人引用回复")
+	}
+
+	// 孤独指数
+	if stat.MsgCount > 0 {
+		lonelyRate := stat.LonelyCount * 100 / stat.MsgCount
+		switch {
+		case lonelyRate >= 80:
+			traits = append(traits, fmt.Sprintf(
+				"%d条发言里%d%%发出后5分钟无人回应，今日最孤独", stat.MsgCount, lonelyRate))
+		case lonelyRate >= 50:
+			traits = append(traits, fmt.Sprintf("超过一半发言没人接，有点冷场"))
+		}
+	}
+
+	// 连发
+	switch {
+	case stat.BurstCount >= 5:
+		traits = append(traits, fmt.Sprintf("连发爆发%d次，间歇性话痨确诊", stat.BurstCount))
+	case stat.BurstCount >= 2:
+		traits = append(traits, fmt.Sprintf("有%d次60秒内连发3条以上", stat.BurstCount))
+	}
+
+	// 情绪
+	if stat.ExclamCount >= 10 {
+		traits = append(traits, fmt.Sprintf("用了%d个感叹号，今天情绪高涨", stat.ExclamCount))
+	}
+	if stat.QuestionCount >= 8 {
+		traits = append(traits, fmt.Sprintf("问了%d个问号，今天十万个为什么", stat.QuestionCount))
+	}
+	if stat.EllipsisCount >= 5 {
+		traits = append(traits, fmt.Sprintf("用了%d个省略号，意味深长还是说不完整", stat.EllipsisCount))
+	}
+
+	// 词汇量 vs 发言量的矛盾
+	if stat.MsgCount >= 10 && stat.VocabSize > 0 {
+		switch {
+		case stat.VocabSize < 20 && stat.MsgCount >= 15:
+			traits = append(traits, fmt.Sprintf(
+				"发了%d条但只用了%d种字，翻来覆去就那几个词", stat.MsgCount, stat.VocabSize))
+		case stat.VocabSize >= 80:
+			traits = append(traits, fmt.Sprintf("用词丰富，今天输出了%d种不同的字", stat.VocabSize))
+		}
+	}
+
+	// 平均发言长度
+	switch {
+	case stat.AvgMsgLen >= 30:
+		traits = append(traits, fmt.Sprintf("平均每条%d字，长篇大论型选手", stat.AvgMsgLen))
+	case stat.AvgMsgLen <= 3 && stat.MsgCount >= 10:
+		traits = append(traits, fmt.Sprintf("平均每条只有%d字，极简主义者", stat.AvgMsgLen))
+	}
+
+	// 复读
+	if stat.RepeatCount >= 3 {
+		preview := stat.RepeatMsg
+		if runeLen(preview) > 15 {
+			preview = string([]rune(preview)[:15]) + "..."
+		}
+		traits = append(traits, fmt.Sprintf(
+			"今天把「%s」说了%d次，人工复读机", preview, stat.RepeatCount))
+	}
+
 	// 时间特征
 	activeHours := stat.LastHour - stat.FirstHour
 	switch {
 	case stat.NightOwl && stat.FirstHour >= 22:
 		traits = append(traits, fmt.Sprintf(
-			"%02d点开始发言，%02d点还没睡，全程夜班", stat.FirstHour, stat.LastHour))
+			"%02d点开始发言%02d点还没睡，全程夜班", stat.FirstHour, stat.LastHour))
 	case stat.NightOwl:
 		traits = append(traits, fmt.Sprintf(
-			"凌晨还在发言，熬夜战士，%02d点才消失", stat.LastHour))
+			"凌晨还在发言，%02d点才消失", stat.LastHour))
 	case stat.FirstHour <= 7 && stat.LastHour <= 12:
 		traits = append(traits, fmt.Sprintf(
 			"%02d点就开始发言，早鸟型，%02d点沉默", stat.FirstHour, stat.LastHour))
@@ -164,18 +246,16 @@ func buildUserBlock(rank int, stat UserStat) string {
 			"从%02d点聊到%02d点，全天候在线", stat.FirstHour, stat.LastHour))
 	case activeHours <= 1 && stat.MsgCount >= 10:
 		traits = append(traits, fmt.Sprintf(
-			"1小时内集中发了%d条，打完就跑型", stat.MsgCount))
+			"1小时内集中发了%d条，打完就跑", stat.MsgCount))
 	}
 
-	if len(traits) > 0 {
-		for _, t := range traits {
-			sb.WriteString(fmt.Sprintf("   · %s\n", t))
-		}
+	// 写入特征
+	for _, t := range traits {
+		sb.WriteString(fmt.Sprintf("   · %s\n", t))
 	}
 
 	// 代表发言
 	if len(stat.SampleMsgs) > 0 {
-		sb.WriteString("   代表发言：")
 		quoted := make([]string, 0, len(stat.SampleMsgs))
 		for _, msg := range stat.SampleMsgs {
 			r := []rune(msg)
@@ -184,8 +264,9 @@ func buildUserBlock(rank int, stat UserStat) string {
 			}
 			quoted = append(quoted, "「"+msg+"」")
 		}
-		sb.WriteString(strings.Join(quoted, " / ") + "\n")
+		sb.WriteString("   代表发言：" + strings.Join(quoted, " / ") + "\n")
 	}
+
 	sb.WriteString("\n")
 	return sb.String()
 }
