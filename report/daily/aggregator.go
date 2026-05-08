@@ -168,7 +168,7 @@ func (a *Aggregator) calcUserStats(userMap map[int64][]GroupMessage, allGroupMsg
 
 		// BeReplied：群里的 reply at 类型消息里，targetID == 当前用户的数量
 		for _, gm := range allGroupMsgs {
-			if (gm.MsgType == "reply" || gm.MsgType == "at") && gm.TargetUserID == userID {
+			if gm.TargetUserID == userID {
 				stat.BeReplied++
 			}
 		}

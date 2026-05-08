@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/fumiama/cron"
 	"gorm.io/gorm"
+	"strconv"
 
 	"github.com/kohmebot/plugin/v2"
 	"github.com/kohmebot/report/report/daily"
@@ -22,6 +23,10 @@ func (p *PluginReport) OnHandleMessage(engine plugin.Engine) {
 		var msgType string
 		for _, segment := range ctx.Event.Message {
 			msgType = segment.Type
+			if msgType != "text" {
+				// 找到第一个非text的消息
+				break
+			}
 		}
 
 		if !slices.Contains([]string{"text", "image", "at", "poke", "reply"}, msgType) {
@@ -31,7 +36,7 @@ func (p *PluginReport) OnHandleMessage(engine plugin.Engine) {
 		msg := daily.GroupMessage{
 			GroupID:      ctx.Event.GroupID,
 			UserID:       ctx.Event.UserID,
-			TargetUserID: ctx.Event.TargetID,
+			TargetUserID: getTargetID(ctx),
 			Nickname:     ctx.CardOrNickName(ctx.Event.UserID),
 			Content:      ctx.Event.Message.ExtractPlainText(),
 			MsgType:      msgType,
@@ -42,6 +47,36 @@ func (p *PluginReport) OnHandleMessage(engine plugin.Engine) {
 
 		p.r.Write(msg)
 	})
+}
+
+func getTargetID(ctx *zero.Ctx) int64 {
+	if ctx.Event.TargetID != 0 {
+		return ctx.Event.TargetID
+	}
+	var targetID int64
+	// 优先找at
+	for _, segment := range ctx.Event.Message {
+		if segment.Type == "at" {
+			targetID, _ = strconv.ParseInt(segment.Data["qq"], 10, 64)
+			break
+		}
+	}
+	if targetID != 0 {
+		return targetID
+	}
+
+	// 找引用的消息
+	for _, segment := range ctx.Event.Message {
+		if segment.Type == "reply" {
+			msgId, _ := strconv.ParseInt(segment.Data["id"], 10, 64)
+			m := ctx.GetMessage(msgId)
+			targetID = m.Sender.ID
+			break
+		}
+	}
+
+	return targetID
+
 }
 
 func (p *PluginReport) OnBuild(engine plugin.Engine) {
@@ -71,7 +106,11 @@ func (p *PluginReport) BuildReport(group int64, t time.Time) (string, error) {
 	// 构造prompt，调用AI
 	data := daily.BuildPrompt(report)
 	req := fmt.Sprintf(daily.UserPrompt, data)
-	res, err := p.invoker.DoRequestWithModel(req, p.largeModel)
+	largeModel, err := p.invoker.NewModel(daily.System, true, false)
+	if err != nil {
+		return "", err
+	}
+	res, err := p.invoker.DoRequestWithModel(req, largeModel)
 	if err != nil {
 		return "", fmt.Errorf("AI调用失败: %w", err)
 	}

@@ -2,7 +2,6 @@ package report
 
 import (
 	"github.com/kohmebot/chatai/chatai/chataisdk"
-	"github.com/kohmebot/chatai/chatai/model"
 	"github.com/kohmebot/plugin/v2"
 	"github.com/kohmebot/report/report/daily"
 	zero "github.com/wdvxdr1123/ZeroBot"
@@ -10,11 +9,11 @@ import (
 )
 
 type PluginReport struct {
-	env        plugin.Env
-	db         *gorm.DB
-	r          *BatchRecorder
-	largeModel model.LargeModel
-	invoker    *chataisdk.ChatAIInvoker
+	env plugin.Env
+	db  *gorm.DB
+	r   *BatchRecorder
+
+	invoker *chataisdk.ChatAIInvoker
 }
 
 func NewPlugin() plugin.Plugin {
@@ -42,8 +41,6 @@ func (p *PluginReport) OnInit(engine plugin.Engine, env plugin.Env) error {
 		return err
 	}
 
-	p.largeModel, err = p.invoker.NewModel(daily.System, true, false)
-
 	p.r = NewBatchRecorder(p.db)
 
 	p.OnHandleMessage(engine)
@@ -66,5 +63,5 @@ func (p *PluginReport) Name() string {
 }
 
 func (p *PluginReport) Version() string {
-	return "v0.0.1-alpha.4"
+	return "v0.0.1-alpha.5"
 }
