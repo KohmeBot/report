@@ -2,10 +2,13 @@ package report
 
 import (
 	"fmt"
+	"github.com/fumiama/cron"
+
 	"github.com/kohmebot/plugin/v2"
 	"github.com/kohmebot/report/report/daily"
 	"github.com/sirupsen/logrus"
 	zero "github.com/wdvxdr1123/ZeroBot"
+
 	"slices"
 	"time"
 )
@@ -25,7 +28,7 @@ func (p *PluginReport) OnHandleMessage(engine plugin.Engine) {
 		msg := daily.GroupMessage{
 			GroupID:   ctx.Event.GroupID,
 			UserID:    ctx.Event.UserID,
-			Nickname:  ctx.Event.Sender.NickName,
+			Nickname:  ctx.CardOrNickName(ctx.Event.UserID),
 			Content:   ctx.Event.Message.ExtractPlainText(),
 			MsgType:   msgType,
 			Hour:      t.Hour(),
@@ -62,4 +65,34 @@ func (p *PluginReport) BuildReport(group int64, t time.Time) (string, error) {
 	}
 	logrus.Infof("req:%s\nresp:%s\n", req, res)
 	return res, nil
+}
+
+func (p *PluginReport) startSendTicker() {
+	c := cron.New()
+	var id cron.EntryID
+	id, err := c.AddFunc("0 23 * * *", func() {
+		now := time.Now()
+		p.env.UseBot(func(ctx *zero.Ctx) {
+			for group := range p.env.Groups().RangeGroup() {
+				text, err := p.BuildReport(group, now)
+				if err != nil {
+					p.env.Error(ctx, err)
+					return
+				}
+				ctx.Send(text)
+				time.Sleep(5 * time.Second)
+
+			}
+		})
+
+		logrus.Infof("Next 将在 %s 发送Rank", c.Entry(id).Next)
+	})
+	if err != nil {
+		logrus.Errorf("开启定时发送失败 %s", err)
+		return
+	}
+
+	c.Start()
+	time.Sleep(300 * time.Millisecond)
+	logrus.Infof("将在 %s 发送Rank", c.Entry(id).Next)
 }

@@ -49,6 +49,7 @@ func (p *PluginReport) OnInit(engine plugin.Engine, env plugin.Env) error {
 }
 
 func (p *PluginReport) OnBoot() {
+	go p.startSendTicker()
 	go p.r.batchWriter()
 }
 
@@ -61,5 +62,5 @@ func (p *PluginReport) Name() string {
 }
 
 func (p *PluginReport) Version() string {
-	return "v0.0.1-alpha.1"
+	return "v0.0.1-alpha.2"
 }
