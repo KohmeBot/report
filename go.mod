@@ -4,7 +4,7 @@ go 1.24.2
 
 require (
 	github.com/fumiama/cron v1.3.0
-	github.com/kohmebot/chatai v0.2.1
+	github.com/kohmebot/chatai v0.2.2
 	github.com/kohmebot/pkg v1.0.2
 	github.com/kohmebot/plugin/v2 v2.0.2
 	github.com/sirupsen/logrus v1.9.3

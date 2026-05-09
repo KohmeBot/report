@@ -8,6 +8,7 @@ type GroupDailyStat struct {
 	Date    string `gorm:"uniqueIndex:idx_group_day,priority:2"`
 	Data    string // 整个 DailyReport 的 JSON
 	Report  string // ai生成的report结果
+	Theme   string // theme json
 }
 
 // GroupMessage 原始消息（流水表）
@@ -82,4 +83,13 @@ type DailyReport struct {
 type KeywordStat struct {
 	Word  string
 	Count int
+}
+
+type DailyTheme struct {
+	Theme       string `json:"theme"`
+	Role        string `json:"role"`
+	Style       string `json:"style"`
+	Opening     string `json:"opening"`
+	UserFormat  string `json:"user_format"`
+	GhostFormat string `json:"ghost_format"`
 }

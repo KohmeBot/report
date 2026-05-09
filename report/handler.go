@@ -1,11 +1,8 @@
 package report
 
 import (
-	"encoding/json"
-	"errors"
-	"fmt"
 	"github.com/fumiama/cron"
-	"gorm.io/gorm"
+	"github.com/wdvxdr1123/ZeroBot/extension"
 	"strconv"
 
 	"github.com/kohmebot/plugin/v2"
@@ -81,7 +78,18 @@ func getTargetID(ctx *zero.Ctx) int64 {
 
 func (p *PluginReport) OnBuild(engine plugin.Engine) {
 	engine.OnCommand("buildreport", p.env.SuperUser().Rule()).Handle(func(ctx *zero.Ctx) {
-		text, err := p.BuildReport(ctx.Event.GroupID, time.Now())
+		var cmd extension.CommandModel
+		err := ctx.Parse(&cmd)
+		if err != nil {
+			logrus.Error(err)
+		}
+
+		group, _ := strconv.ParseInt(cmd.Args, 10, 64)
+		if group == 0 {
+			group = ctx.Event.GroupID
+		}
+
+		text, err := p.GetReport(group, Yesterday(), p.GetTheme(time.Now()))
 		if err != nil {
 			p.env.Error(ctx, err)
 			return
@@ -90,78 +98,48 @@ func (p *PluginReport) OnBuild(engine plugin.Engine) {
 	})
 }
 
-func (p *PluginReport) BuildReport(group int64, t time.Time) (string, error) {
-	date := t.Format("2006-01-02")
-
-	// 聚合数据
-	aggregator := daily.NewAggregator(p.db)
-	report, err := aggregator.Aggregate(group, date)
+func (p *PluginReport) GetTheme(t time.Time) *daily.DailyTheme {
+	g := daily.NewGenerator(p.db, p.invoker)
+	theme, err := g.GenerateTheme(t)
 	if err != nil {
-		return "", fmt.Errorf("聚合失败: %w", err)
+		logrus.Errorf("生成主题失败 %v", err)
+		theme = daily.FallbackTheme()
 	}
-	if report == nil {
-		return "", nil
-	}
+	logrus.Infof("今日主题: %+v", theme)
 
-	// 构造prompt，调用AI
-	data := daily.BuildPrompt(report)
-	req := fmt.Sprintf(daily.UserPrompt, data)
-	largeModel, err := p.invoker.NewModel(daily.System, true, false)
-	if err != nil {
-		return "", err
-	}
-	res, err := p.invoker.DoRequestWithModel(req, largeModel)
-	if err != nil {
-		return "", fmt.Errorf("AI调用失败: %w", err)
-	}
-	logrus.Infof("req:%s\nresp:%s\n", req, res)
-
-	// 持久化聚合数据和AI结果
-	dataJSON, _ := json.Marshal(report)
-	if err := p.saveReport(group, date, string(dataJSON), res); err != nil {
-		// 存储失败不影响返回，只记录日志
-		logrus.Warnf("持久化日报失败 group=%d date=%s err=%v", group, date, err)
-	}
-
-	return res, nil
+	return theme
 }
 
-func (p *PluginReport) saveReport(group int64, date, data, report string) error {
-	var stat daily.GroupDailyStat
-	err := p.db.Where("group_id = ? AND date = ?", group, date).First(&stat).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return p.db.Create(&daily.GroupDailyStat{
-			GroupID: group,
-			Date:    date,
-			Data:    data,
-			Report:  report,
-		}).Error
-	}
-	return p.db.Model(&stat).Updates(map[string]any{
-		"data":   data,
-		"report": report,
-	}).Error
+func (p *PluginReport) GetReport(group int64, t time.Time, theme *daily.DailyTheme) (string, error) {
+
+	g := daily.NewGenerator(p.db, p.invoker)
+
+	report, err := g.GenerateReport(group, t, theme)
+
+	return report, err
 }
 
 func (p *PluginReport) startSendTicker() {
 	c := cron.New()
 	var id cron.EntryID
-	id, err := c.AddFunc("0 23 * * *", func() {
+	id, err := c.AddFunc("0 8 * * *", func() {
 		now := time.Now()
+		yesterday := Yesterday()
+		theme := p.GetTheme(now)
+
 		p.env.UseBot(func(ctx *zero.Ctx) {
 			for group := range p.env.Groups().RangeGroup() {
-				text, err := p.BuildReport(group, now)
+				text, err := p.GetReport(group, yesterday, theme)
 				if err != nil {
 					p.env.Error(ctx, err)
 					return
 				}
-				ctx.Send(text)
-				time.Sleep(5 * time.Second)
-
+				ctx.SendGroupMessage(group, text)
+				time.Sleep(3 * time.Second)
 			}
 		})
 
-		logrus.Infof("Next 将在 %s 发送Rank", c.Entry(id).Next)
+		logrus.Infof("Next 将在 %s 发送Report", c.Entry(id).Next)
 	})
 	if err != nil {
 		logrus.Errorf("开启定时发送失败 %s", err)
@@ -170,5 +148,11 @@ func (p *PluginReport) startSendTicker() {
 
 	c.Start()
 	time.Sleep(300 * time.Millisecond)
-	logrus.Infof("将在 %s 发送Rank", c.Entry(id).Next)
+	logrus.Infof("将在 %s 发送Report", c.Entry(id).Next)
+}
+
+func Yesterday() time.Time {
+	today := time.Now().Truncate(24 * time.Hour)
+	yesterday := today.AddDate(0, 0, -1)
+	return yesterday
 }

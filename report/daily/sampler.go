@@ -1,60 +1,92 @@
 package daily
 
 import (
-	"math/rand"
-	"sort"
+	"math/rand/v2"
 	"strings"
+	"time"
 )
 
 // SampleMessages 从一个人的所有发言里筛出最有代表性的4条
-func SampleMessages(contents []string) []string {
-	if len(contents) == 0 {
+// msgs 必须按 CreatedAt 升序
+func SampleMessages(msgs []GroupMessage) []string {
+	if len(msgs) == 0 {
 		return nil
 	}
-	if len(contents) <= 4 {
-		return contents
+
+	// 只取文本类消息参与筛选
+	textMsgs := make([]GroupMessage, 0, len(msgs))
+	for _, m := range msgs {
+		if (m.MsgType == "text" || m.MsgType == "mixed") && m.Content != "" {
+			textMsgs = append(textMsgs, m)
+		}
+	}
+	if len(textMsgs) == 0 {
+		return nil
+	}
+	if len(textMsgs) <= 4 {
+		result := make([]string, 0, len(textMsgs))
+		for _, m := range textMsgs {
+			result = append(result, m.Content)
+		}
+		return result
 	}
 
 	result := make([]string, 0, 4)
-	used := make(map[int]bool)
+	used := make(map[uint]bool) // key 用消息ID，唯一且稳定
+
+	pickMsg := func(fn func([]GroupMessage, map[uint]bool) int) {
+		idx := fn(textMsgs, used)
+		if idx >= 0 {
+			result = append(result, textMsgs[idx].Content)
+			used[textMsgs[idx].ID] = true
+		}
+	}
 
 	// 策略1：最长的一条（最有信息量）
-	longest := pickLongest(contents)
-	if longest >= 0 {
-		result = append(result, contents[longest])
-		used[longest] = true
-	}
+	pickMsg(pickLongest)
 
-	// 策略2：包含问号最多的一条（最迷茫/最好奇）
-	mostQuestion := pickMostQuestion(contents, used)
-	if mostQuestion >= 0 {
-		result = append(result, contents[mostQuestion])
-		used[mostQuestion] = true
-	}
+	// 策略2：情绪最强烈（感叹号+问号最多）
+	pickMsg(pickMostEmotional)
 
-	// 策略3：最短且不是纯标点/表情的一条（最懒的发言）
-	shortest := pickMeaningfulShortest(contents, used)
-	if shortest >= 0 {
-		result = append(result, contents[shortest])
-		used[shortest] = true
-	}
+	// 策略3：口头禅（前5字相同且重复最多的句式的代表句）
+	pickMsg(pickMostRepresentative)
 
-	// 策略4：随机一条兜底（保留随机性）
-	for i := 0; i < 20; i++ {
-		idx := rand.Intn(len(contents))
-		if !used[idx] {
-			result = append(result, contents[idx])
-			break
+	// 策略4：时间上最孤立（距离自己前后发言间隔最长，真实分钟数）
+	pickMsg(pickMostIsolated)
+
+	// 兜底：不足4条则从剩余消息中随机补齐
+	if len(result) < 4 {
+		// 收集所有未used的消息下标
+		remaining := make([]int, 0)
+		for i, m := range textMsgs {
+			if !used[m.ID] {
+				remaining = append(remaining, i)
+			}
+		}
+		// 随机打乱
+		rand.Shuffle(len(remaining), func(i, j int) {
+			remaining[i], remaining[j] = remaining[j], remaining[i]
+		})
+		// 补齐到4条
+		for _, idx := range remaining {
+			if len(result) >= 4 {
+				break
+			}
+			result = append(result, textMsgs[idx].Content)
+			used[textMsgs[idx].ID] = true
 		}
 	}
 
 	return result
 }
 
-func pickLongest(contents []string) int {
+func pickLongest(msgs []GroupMessage, used map[uint]bool) int {
 	maxLen, idx := 0, -1
-	for i, s := range contents {
-		if l := runeLen(s); l > maxLen {
+	for i, m := range msgs {
+		if used[m.ID] {
+			continue
+		}
+		if l := runeLen(m.Content); l > maxLen {
 			maxLen = l
 			idx = i
 		}
@@ -62,44 +94,98 @@ func pickLongest(contents []string) int {
 	return idx
 }
 
-func pickMostQuestion(contents []string, used map[int]bool) int {
-	maxQ, idx := -1, -1
-	for i, s := range contents {
-		if used[i] {
+func pickMostEmotional(msgs []GroupMessage, used map[uint]bool) int {
+	maxScore, idx := -1, -1
+	for i, m := range msgs {
+		if used[m.ID] {
 			continue
 		}
-		q := strings.Count(s, "?") + strings.Count(s, "？")
-		if q > maxQ {
-			maxQ = q
+		score := strings.Count(m.Content, "!") + strings.Count(m.Content, "！") +
+			strings.Count(m.Content, "?") + strings.Count(m.Content, "？")
+		if score > maxScore {
+			maxScore = score
 			idx = i
 		}
 	}
-	if maxQ == 0 {
-		return -1 // 没有问句就不取
+	if maxScore == 0 {
+		return -1
 	}
 	return idx
 }
 
-func pickMeaningfulShortest(contents []string, used map[int]bool) int {
-	// 过滤掉纯标点、纯数字、只有表情的
-	candidates := make([]int, 0)
-	for i, s := range contents {
-		if used[i] {
+func pickMostRepresentative(msgs []GroupMessage, used map[uint]bool) int {
+	freq := make(map[string][]int)
+	for i, m := range msgs {
+		if used[m.ID] {
 			continue
 		}
-		stripped := strings.TrimFunc(s, func(r rune) bool {
-			return strings.ContainsRune("哈呵嗯啊哦噢。，！？.,!? \t", r)
-		})
-		if runeLen(stripped) >= 2 { // 至少有2个有意义的字
-			candidates = append(candidates, i)
+		r := []rune(m.Content)
+		keyLen := 5
+		if len(r) < keyLen {
+			keyLen = len(r)
+		}
+		if keyLen < 2 {
+			continue
+		}
+		key := string(r[:keyLen])
+		freq[key] = append(freq[key], i)
+	}
+
+	bestIdx := -1
+	bestCount := 1
+	for _, idxList := range freq {
+		if len(idxList) > bestCount {
+			bestCount = len(idxList)
+			// 取这组里最长的作为代表
+			best, maxLen := -1, 0
+			for _, i := range idxList {
+				if l := runeLen(msgs[i].Content); l > maxLen {
+					maxLen = l
+					best = i
+				}
+			}
+			bestIdx = best
 		}
 	}
-	if len(candidates) == 0 {
+	return bestIdx
+}
+
+func pickMostIsolated(msgs []GroupMessage, used map[uint]bool) int {
+	maxGap, idx := time.Duration(0), -1
+
+	for i, m := range msgs {
+		if used[m.ID] {
+			continue
+		}
+
+		// 找前一条未used消息的时间
+		prevGap := time.Duration(m.Hour) * time.Hour // 兜底：距当天开始的时间
+		for j := i - 1; j >= 0; j-- {
+			if !used[msgs[j].ID] {
+				prevGap = m.CreatedAt.Sub(msgs[j].CreatedAt)
+				break
+			}
+		}
+
+		// 找后一条未used消息的时间
+		nextGap := time.Duration(23-m.Hour) * time.Hour // 兜底：距当天结束的时间
+		for j := i + 1; j < len(msgs); j++ {
+			if !used[msgs[j].ID] {
+				nextGap = msgs[j].CreatedAt.Sub(m.CreatedAt)
+				break
+			}
+		}
+
+		gap := prevGap + nextGap
+		if gap > maxGap {
+			maxGap = gap
+			idx = i
+		}
+	}
+
+	// 前后间隔加起来不足20分钟，说明发言密集，没有孤立感
+	if maxGap < 20*time.Minute {
 		return -1
 	}
-	// 取最短的
-	sort.Slice(candidates, func(a, b int) bool {
-		return runeLen(contents[candidates[a]]) < runeLen(contents[candidates[b]])
-	})
-	return candidates[0]
+	return idx
 }

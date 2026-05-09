@@ -197,7 +197,7 @@ func (a *Aggregator) calcUserStats(userMap map[int64][]GroupMessage, allGroupMsg
 		stat.LastHour = msgs[len(msgs)-1].Hour
 
 		stat.AllContents = textContents
-		stat.SampleMsgs = SampleMessages(textContents)
+		stat.SampleMsgs = SampleMessages(msgs)
 
 		stats = append(stats, stat)
 	}
