@@ -9,9 +9,10 @@ import (
 )
 
 type PluginReport struct {
-	env plugin.Env
-	db  *gorm.DB
-	r   *BatchRecorder
+	env  plugin.Env
+	db   *gorm.DB
+	r    *BatchRecorder
+	conf Config
 
 	invoker *chataisdk.ChatAIInvoker
 }
@@ -23,6 +24,11 @@ func NewPlugin() plugin.Plugin {
 func (p *PluginReport) OnInit(engine plugin.Engine, env plugin.Env) error {
 	var err error
 	p.env = env
+	err = env.GetConf(&p.conf)
+	if err != nil {
+		return err
+	}
+
 	p.db, err = env.GetDB()
 	if err != nil {
 		return err
@@ -63,5 +69,5 @@ func (p *PluginReport) Name() string {
 }
 
 func (p *PluginReport) Version() string {
-	return "v0.0.1-alpha.7"
+	return "v0.0.1-alpha.8"
 }

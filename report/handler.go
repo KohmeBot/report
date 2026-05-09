@@ -125,9 +125,13 @@ func (p *PluginReport) startSendTicker() {
 	id, err := c.AddFunc("0 8 * * *", func() {
 		yesterday := Yesterday()
 		theme := p.GetTheme(yesterday)
+		iter := p.env.Groups().RangeGroup()
+		if p.conf.SendGroups != nil {
+			iter = slices.Values(p.conf.SendGroups)
+		}
 
 		p.env.UseBot(func(ctx *zero.Ctx) {
-			for group := range p.env.Groups().RangeGroup() {
+			for group := range iter {
 				text, err := p.GetReport(group, yesterday, theme)
 				if err != nil {
 					p.env.Error(ctx, err)
