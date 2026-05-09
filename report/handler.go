@@ -155,7 +155,13 @@ func (p *PluginReport) startSendTicker() {
 }
 
 func Yesterday() time.Time {
-	today := time.Now().Truncate(24 * time.Hour)
-	yesterday := today.AddDate(0, 0, -1)
+	now := time.Now()
+	yesterday := time.Date(
+		now.Year(),
+		now.Month(),
+		now.Day()-1,
+		0, 0, 0, 0,
+		now.Location(),
+	)
 	return yesterday
 }
