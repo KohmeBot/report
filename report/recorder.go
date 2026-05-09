@@ -1,7 +1,9 @@
 package report
 
 import (
+	"fmt"
 	"github.com/kohmebot/report/report/daily"
+	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 	"time"
 )
@@ -32,14 +34,23 @@ func (r *BatchRecorder) batchWriter() {
 		case msg := <-r.msgChan:
 			batch = append(batch, msg)
 			if len(batch) >= 50 { // 积累50条立即写
-				r.db.Create(&batch)
-				batch = batch[:0]
+				batch = r.write(batch)
 			}
 		case <-ticker.C:
 			if len(batch) > 0 { // 定时兜底写入
-				r.db.Create(&batch)
-				batch = batch[:0]
+				batch = r.write(batch)
 			}
 		}
+
 	}
+}
+
+func (r *BatchRecorder) write(batch []daily.GroupMessage) []daily.GroupMessage {
+	err := r.db.Create(&batch).Error
+	if err != nil {
+		logrus.Error(fmt.Errorf("write group message error: %v", err))
+	} else {
+		logrus.Infof("write %d group message", len(batch))
+	}
+	return batch[:0]
 }

@@ -86,10 +86,19 @@ type KeywordStat struct {
 }
 
 type DailyTheme struct {
-	Theme       string `json:"theme"`
-	Role        string `json:"role"`
-	Style       string `json:"style"`
-	Opening     string `json:"opening"`
-	UserFormat  string `json:"user_format"`
-	GhostFormat string `json:"ghost_format"`
+	Theme             string `json:"theme"`
+	Role              string `json:"role"`
+	Style             string `json:"style"`
+	Opening           string `json:"opening"`
+	UserFormat        string `json:"user_format"`
+	GhostFormat       string `json:"ghost_format"`
+	MvpHeader         string `json:"mvp_header"`
+	MomentHeader      string `json:"moment_header"`
+	MomentFormat      string `json:"moment_format"`
+	InteractionHeader string `json:"interaction_header"`
+	InteractionFormat string `json:"interaction_format"`
+	TriviaHeader      string `json:"trivia_header"`
+	TriviaFormat      string `json:"trivia_format"`
+	DiagnosisHeader   string `json:"diagnosis_header"`
+	GhostHeader       string `json:"ghost_header"`
 }
