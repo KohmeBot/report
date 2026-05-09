@@ -89,7 +89,7 @@ func (p *PluginReport) OnBuild(engine plugin.Engine) {
 			group = ctx.Event.GroupID
 		}
 
-		text, err := p.GetReport(group, Yesterday(), p.GetTheme(time.Now()))
+		text, err := p.GetReport(group, Yesterday(), p.GetTheme(Yesterday()))
 		if err != nil {
 			p.env.Error(ctx, err)
 			return
@@ -123,9 +123,8 @@ func (p *PluginReport) startSendTicker() {
 	c := cron.New()
 	var id cron.EntryID
 	id, err := c.AddFunc("0 8 * * *", func() {
-		now := time.Now()
 		yesterday := Yesterday()
-		theme := p.GetTheme(now)
+		theme := p.GetTheme(yesterday)
 
 		p.env.UseBot(func(ctx *zero.Ctx) {
 			for group := range p.env.Groups().RangeGroup() {
