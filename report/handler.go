@@ -98,14 +98,36 @@ func (p *PluginReport) OnBuild(engine plugin.Engine) {
 	})
 }
 
-func (p *PluginReport) GetTheme(t time.Time) *daily.DailyTheme {
+func (p *PluginReport) GetTheme(t time.Time) (theme *daily.DailyTheme) {
+	defer func() {
+		logrus.Infof("今日主题: %+v", theme)
+	}()
+	var err error
 	g := daily.NewGenerator(p.db, p.invoker)
-	theme, err := g.GenerateTheme(t)
+
+	theme, err = g.GetTodayTheme(t)
+	// 已有则复用
+	if err == nil {
+		return theme
+	}
+
+	var excludeDate []time.Time
+	for i := 1; i <= 7; i++ {
+		// 最近七天
+		// 以昨天为基准算，这里要-1
+		offset := -i - 1
+		excludeDate = append(excludeDate, Day(offset))
+	}
+	used, err := g.GetUsedTheme(excludeDate...)
+	if err != nil {
+		logrus.Errorf("获取已使用的主题失败 %v", err)
+	}
+
+	theme, err = g.GenerateTheme(t, used...)
 	if err != nil {
 		logrus.Errorf("生成主题失败 %v", err)
 		theme = daily.FallbackTheme()
 	}
-	logrus.Infof("今日主题: %+v", theme)
 
 	return theme
 }
@@ -154,14 +176,23 @@ func (p *PluginReport) startSendTicker() {
 	logrus.Infof("将在 %s 发送Report", c.Entry(id).Next)
 }
 
-func Yesterday() time.Time {
+func Day(offset ...int) time.Time {
+	var os int
+	if len(offset) > 0 {
+		os = offset[0]
+	}
+
 	now := time.Now()
 	yesterday := time.Date(
 		now.Year(),
 		now.Month(),
-		now.Day()-1,
+		now.Day()+os,
 		0, 0, 0, 0,
 		now.Location(),
 	)
 	return yesterday
+}
+
+func Yesterday() time.Time {
+	return Day(-1)
 }

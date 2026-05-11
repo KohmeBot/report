@@ -7,7 +7,9 @@ import (
 	"github.com/kohmebot/chatai/chatai/chataisdk"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
+	"maps"
 	"math/rand"
+	"slices"
 	"strings"
 	"time"
 )
@@ -102,11 +104,53 @@ func (g *Generator) saveReport(group int64, date, data, report, theme string) er
 	}).Error
 }
 
-func (g *Generator) GenerateTheme(t time.Time) (*DailyTheme, error) {
+// GetTodayTheme 查是否已生成过主题，有则直接复用
+func (g *Generator) GetTodayTheme(t time.Time) (*DailyTheme, error) {
+	var stat GroupDailyStat
+	err := g.db.Where("date = ? AND theme != ''", t.Format("2006-01-02")).
+		First(&stat).Error
+	if err != nil {
+		return nil, err
+	}
+	var theme DailyTheme
+	if err := json.Unmarshal([]byte(stat.Theme), &theme); err != nil {
+		return nil, err
+	}
+	return &theme, nil
+}
+
+func (g *Generator) GetUsedTheme(ts ...time.Time) ([]*DailyTheme, error) {
+	dates := make([]string, 0, len(ts))
+	for _, t := range ts {
+		dates = append(dates, t.Format("2006-01-02"))
+	}
+	var stats []GroupDailyStat
+	err := g.db.Where("date IN ?", dates).Find(&stats).Error
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, err
+	}
+	res := make([]*DailyTheme, 0, len(stats))
+	for _, stat := range stats {
+		var theme DailyTheme
+		_ = json.Unmarshal([]byte(stat.Theme), &theme)
+		res = append(res, &theme)
+	}
+	return res, nil
+}
+
+func (g *Generator) GenerateTheme(t time.Time, exclude ...*DailyTheme) (*DailyTheme, error) {
+	excludeTheme := make(map[string]*DailyTheme, len(exclude))
+	// 做个去重
+	for _, theme := range exclude {
+		excludeTheme[theme.Theme] = theme
+	}
+	excludeStr := strings.Join(slices.Collect(maps.Keys(excludeTheme)), ",")
+
 	weekdays := []string{"日", "一", "二", "三", "四", "五", "六"}
 	req := fmt.Sprintf(themePrompt,
 		t.Format("2006-01-02"),
 		weekdays[t.Weekday()],
+		excludeStr,
 	)
 
 	largeModel, err := g.invoker.NewModel(systemPrompt, true, false, true)
