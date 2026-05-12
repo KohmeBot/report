@@ -1,6 +1,7 @@
 package daily
 
 import (
+	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 	"sort"
 	"strings"
@@ -17,6 +18,12 @@ func NewAggregator(db *gorm.DB) *Aggregator {
 
 // Aggregate 对指定群、指定日期做全量聚合，返回DailyReport
 func (a *Aggregator) Aggregate(groupID int64, date string) (*DailyReport, error) {
+	now := time.Now()
+	defer func() {
+		latency := time.Since(now)
+		logrus.Infof("DailyReport %d %s 生成完毕，耗时 %s", groupID, date, latency)
+	}()
+
 	// 1. 拉取当天所有消息
 	var messages []GroupMessage
 	err := a.db.Where("group_id = ? AND DATE(created_at) = ?", groupID, date).

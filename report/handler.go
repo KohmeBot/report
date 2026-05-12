@@ -105,10 +105,12 @@ func (p *PluginReport) GetTheme(t time.Time) (theme *daily.DailyTheme) {
 	var err error
 	g := daily.NewGenerator(p.db, p.invoker)
 
-	theme, err = g.GetTodayTheme(t)
-	// 已有则复用
-	if err == nil {
-		return theme
+	if !p.conf.RegenTheme {
+		theme, err = g.GetTodayTheme(t)
+		// 已有则复用
+		if err == nil {
+			return theme
+		}
 	}
 
 	var excludeDate []time.Time

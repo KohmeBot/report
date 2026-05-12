@@ -55,7 +55,7 @@ func ExtractKeywords(contents []string, topN int) []KeywordStat {
 
 func containsPunct(s string) bool {
 	for _, r := range s {
-		if strings.ContainsRune("。，！？.,!?、：:；;「」【】()（）\n\t ", r) {
+		if strings.ContainsRune("。，！？.,!?、：:；;「」【】()（）<>《》\n\t ", r) {
 			return true
 		}
 	}
