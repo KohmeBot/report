@@ -21,31 +21,44 @@ func ExtractKeywords(contents []string, topN int) []KeywordStat {
 
 	for _, content := range contents {
 		runes := []rune(content)
-		// 滑动窗口提取2-4字的词组
-		for size := 2; size <= 4; size++ {
-			for i := 0; i+size <= len(runes); i++ {
+		i := 0
+		for i < len(runes) {
+			// 跳过标点和停用单字
+			if containsPunctRune(runes[i]) {
+				i++
+				continue
+			}
+
+			// 从当前位置往后，找最长的不含标点、不在停用词表的词组（最多4字）
+			bestLen := 0
+			for size := 4; size >= 2; size-- {
+				if i+size > len(runes) {
+					continue
+				}
 				word := string(runes[i : i+size])
-				if stopWords[word] {
+				if stopWords[word] || containsPunct(word) {
 					continue
 				}
-				// 过滤掉包含标点的
-				if containsPunct(word) {
-					continue
-				}
-				freq[word]++
+				bestLen = size
+				break
+			}
+
+			if bestLen >= 2 {
+				freq[string(runes[i:i+bestLen])]++
+				i += bestLen // 跳过已匹配的部分，不重叠
+			} else {
+				i++
 			}
 		}
 	}
 
-	// 转成切片排序
 	stats := make([]KeywordStat, 0, len(freq))
 	for word, count := range freq {
-		if count >= 3 { // 至少出现3次才算关键词
+		if count >= 3 {
 			stats = append(stats, KeywordStat{Word: word, Count: count})
 		}
 	}
 
-	// 按频次降序，取topN
 	sortKeywords(stats)
 	if len(stats) > topN {
 		stats = stats[:topN]
@@ -55,11 +68,15 @@ func ExtractKeywords(contents []string, topN int) []KeywordStat {
 
 func containsPunct(s string) bool {
 	for _, r := range s {
-		if strings.ContainsRune("。，！？.,!?、：:；;「」【】()（）<>《》\n\t ", r) {
+		if strings.ContainsRune(punctStr, r) {
 			return true
 		}
 	}
 	return false
+}
+
+func containsPunctRune(r rune) bool {
+	return strings.ContainsRune(punctStr, r)
 }
 
 func sortKeywords(stats []KeywordStat) {
@@ -69,6 +86,8 @@ func sortKeywords(stats []KeywordStat) {
 		}
 	}
 }
+
+const punctStr = "。，！？.,!?、：:；;「」【】()（）<>《》\n\t "
 
 const stopDict = `
 一
