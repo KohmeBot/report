@@ -14,94 +14,110 @@ const reportHTML = `<!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
   body {
-    width: 480px;
+    width: 390px;
     background: transparent;
-    padding: 20px;
-    font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+    padding: 16px;
+    font-family: 'AppFont', "PingFang SC", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased;
   }
 
   .card {
     background: {{.Visual.BgColor}};
-    border-radius: 4px;
+    border-radius: 20px;
     overflow: hidden;
     {{- if eq .Visual.BorderStyle "glow"}}
     border: 1px solid {{.Visual.AccentColor}}44;
     box-shadow: 0 0 40px {{.Visual.AccentColor}}22, 0 20px 60px rgba(0,0,0,0.5);
     {{- else if eq .Visual.BorderStyle "solid"}}
-    border: 1px solid {{.Visual.AccentColor}}88;
+    border: 1px solid {{.Visual.AccentColor}}66;
+    {{- else if eq .Visual.BorderStyle "dashed"}}
+    border: 1px dashed {{.Visual.AccentColor}}55;
+    {{- else if eq .Visual.BorderStyle "double"}}
+    border: 3px double {{.Visual.AccentColor}}66;
     {{- else}}
-    box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+    box-shadow: 0 16px 48px rgba(0,0,0,0.2);
     {{- end}}
   }
 
-  /* 顶部 header */
+  /* ========== HEADER ========== */
   .header {
     background: {{.Visual.HeaderColor}};
-    padding: 28px 32px 24px;
+    padding: 28px 24px 24px;
     position: relative;
     overflow: hidden;
   }
 
+  /* 右上角大字水印 */
   .header-watermark {
     position: absolute;
-    right: -8px;
-    top: -4px;
-    font-size: 88px;
+    right: -4px;
+    top: -12px;
+    font-size: 100px;
     font-weight: 900;
-    color: {{.Visual.AccentColor}}0f;
-    letter-spacing: -4px;
+    color: {{.Visual.AccentColor}}0d;
+    letter-spacing: -6px;
     line-height: 1;
+    pointer-events: none;
+    font-variant-numeric: tabular-nums;
     user-select: none;
-    font-variant-numeric: tabular-nums;
   }
 
-  .header-meta {
+  .header-top {
     display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 14px;
-  }
-
-  .meta-line {
-    width: 20px;
-    height: 1px;
-    background: {{.Visual.AccentColor}};
-    opacity: 0.6;
-  }
-
-  .meta-label {
-    font-size: 10px;
-    color: {{.Visual.AccentColor}};
-    letter-spacing: 3px;
-    opacity: 0.8;
-    text-transform: uppercase;
-  }
-
-  .meta-date {
-    font-size: 10px;
-    color: {{.Visual.TextColor}};
-    opacity: 0.35;
-    letter-spacing: 2px;
-    margin-left: auto;
-    font-variant-numeric: tabular-nums;
-  }
-
-  .title {
-    font-size: 26px;
-    font-weight: 700;
-    color: {{.Visual.TextColor}};
-    letter-spacing: -0.5px;
-    line-height: 1.25;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 20px;
     position: relative;
     z-index: 1;
   }
 
+  .header-tag {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .tag-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: {{.Visual.AccentColor}};
+    opacity: 0.7;
+  }
+
+  .tag-text {
+    font-size: 10px;
+    color: {{.Visual.AccentColor}};
+    letter-spacing: 3px;
+    opacity: 0.7;
+    text-transform: uppercase;
+  }
+
+  .header-date {
+    font-size: 10px;
+    color: {{.Visual.TextColor}};
+    opacity: 0.3;
+    letter-spacing: 1.5px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .title {
+    font-size: 30px;
+    font-weight: 800;
+    color: {{.Visual.TextColor}};
+    letter-spacing: -1px;
+    line-height: 1.15;
+    position: relative;
+    z-index: 1;
+    margin-bottom: 12px;
+  }
+
   .role-line {
-    margin-top: 8px;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -109,312 +125,425 @@ const reportHTML = `<!DOCTYPE html>
     z-index: 1;
   }
 
-  .role-dot {
-    width: 4px;
-    height: 4px;
-    border-radius: 50%;
+  .role-bar {
+    width: 18px;
+    height: 2px;
     background: {{.Visual.AccentColor}};
-    opacity: 0.7;
-    flex-shrink: 0;
+    opacity: 0.5;
+    border-radius: 1px;
   }
 
   .role-text {
     font-size: 11px;
     color: {{.Visual.TextColor}};
-    opacity: 0.4;
+    opacity: 0.35;
     letter-spacing: 1.5px;
   }
 
-  .accent-divider {
+  /* ========== OPENING ========== */
+  .opening-wrap {
+    margin: 0;
+    padding: 18px 24px 20px 21px;
+    background: {{.Visual.AccentColor}}0d;
+    border-left: 3px solid {{.Visual.AccentColor}}99;
+  }
+
+  .opening-label {
+    font-size: 9px;
+    color: {{.Visual.AccentColor}};
+    letter-spacing: 3px;
+    opacity: 0.55;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+  }
+
+  .opening-text {
+    font-size: 14px;
+    line-height: 1.9;
+    color: {{.Visual.TextColor}};
+    opacity: 0.65;
+    font-style: italic;
+  }
+
+  /* ========== 顶部渐变分割 ========== */
+  .top-divider {
     height: 1px;
     background: linear-gradient(
       90deg,
-      {{.Visual.AccentColor}}cc 0%,
-      {{.Visual.AccentColor}}44 60%,
+      {{.Visual.AccentColor}}aa 0%,
+      {{.Visual.AccentColor}}33 50%,
       transparent 100%
     );
   }
 
-  .accent-divider {
-    height: 1px;
-    background: linear-gradient(90deg, {{.Visual.AccentColor}}cc, {{.Visual.AccentColor}}44, transparent);
+  /* ========== SECTIONS ========== */
+  .sections-wrap {
+    padding: 12px 14px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
   }
 
-  .opening-wrap {
-    padding: 16px 32px;
-    background: {{.Visual.AccentColor}}0c;
-    border-left: 2px solid {{.Visual.AccentColor}}88;
-  }
-  .opening-label {
-    font-size: 9px; color: {{.Visual.AccentColor}};
-    letter-spacing: 2.5px; opacity: 0.7;
-    margin-bottom: 6px; text-transform: uppercase;
-  }
-  .opening-text {
-    font-size: 13px; line-height: 1.8;
-    color: {{.Visual.TextColor}}; opacity: 0.75;
-    font-style: italic;
-  }
-
-  /* 通用板块 */
   .section {
-    padding: 16px 32px;
-    border-bottom: 1px solid {{.Visual.AccentColor}}11;
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid {{.Visual.AccentColor}}15;
   }
-  .section:last-of-type { border-bottom: none; }
 
-  .section-header {
+  /* section头部色带 */
+  .section-head {
+    background: {{.Visual.AccentColor}}12;
+    padding: 11px 16px;
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-bottom: 12px;
-  }
-  .section-line {
-    width: 14px; height: 1.5px;
-    background: {{.Visual.AccentColor}}; opacity: 0.7;
-  }
-  .section-title {
-    font-size: 10px;
-    color: {{.Visual.AccentColor}};
-    letter-spacing: 2px;
-    opacity: 0.8;
-    text-transform: uppercase;
+    gap: 10px;
+    border-bottom: 1px solid {{.Visual.AccentColor}}10;
   }
 
-  /* MVP列表 */
+  .section-head-bar {
+    width: 3px;
+    height: 14px;
+    background: {{.Visual.AccentColor}};
+    opacity: 0.6;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+
+  .section-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: {{.Visual.AccentColor}};
+    letter-spacing: 2px;
+    opacity: 0.85;
+    text-transform: uppercase;
+    flex: 1;
+  }
+
+  .section-body {
+    padding: 14px 16px;
+    background: {{.Visual.BgColor}};
+  }
+
+  /* ========== MVP ========== */
+  .mvp-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
   .mvp-item {
     display: flex;
     gap: 12px;
-    margin-bottom: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid {{.Visual.AccentColor}}0e;
     align-items: flex-start;
   }
-  .mvp-item:last-child { margin-bottom: 0; }
+
+  .mvp-item:first-child { padding-top: 0; }
+  .mvp-item:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+
+  .mvp-rank-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 28px;
+    padding-top: 2px;
+  }
 
   .mvp-rank {
-    font-size: 11px;
+    font-size: 20px;
+    font-weight: 900;
     color: {{.Visual.AccentColor}};
-    opacity: 0.5;
-    font-weight: 700;
-    min-width: 18px;
-    padding-top: 1px;
+    opacity: 0.18;
+    line-height: 1;
     font-variant-numeric: tabular-nums;
   }
-  .mvp-right { flex: 1; }
+
+  .mvp-item:first-child .mvp-rank { opacity: 0.55; }
+  .mvp-item:nth-child(2) .mvp-rank { opacity: 0.3; }
+
+  .mvp-right { flex: 1; min-width: 0; }
+
   .mvp-name-line {
     display: flex;
-    align-items: baseline;
+    align-items: center;
     gap: 8px;
-    margin-bottom: 4px;
+    margin-bottom: 6px;
+    flex-wrap: wrap;
   }
+
   .mvp-name {
-    font-size: 13.5px;
-    font-weight: 600;
+    font-size: 15px;
+    font-weight: 700;
     color: {{.Visual.TextColor}};
     opacity: 0.9;
   }
-  .mvp-title {
+
+  .mvp-badge {
     font-size: 10px;
     color: {{.Visual.AccentColor}};
-    opacity: 0.7;
     background: {{.Visual.AccentColor}}18;
-    padding: 1px 7px;
-    border-radius: 2px;
-    letter-spacing: 0.5px;
-  }
-  .mvp-comment {
-    font-size: 12.5px;
-    line-height: 1.75;
-    color: {{.Visual.TextColor}};
-    opacity: 0.65;
+    padding: 2px 9px;
+    border-radius: 20px;
+    border: 1px solid {{.Visual.AccentColor}}28;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
   }
 
-  /* 单行信息块（moment/interaction/trivia/diagnosis） */
-  .info-block {
-    background: {{.Visual.AccentColor}}08;
-    border-radius: 3px;
-    padding: 10px 14px;
-  }
-  .info-time {
-    font-size: 10px;
-    color: {{.Visual.AccentColor}};
-    opacity: 0.7;
-    margin-bottom: 5px;
-    letter-spacing: 1px;
-  }
-  .info-text {
+  .mvp-comment {
     font-size: 13px;
-    line-height: 1.75;
+    line-height: 1.85;
     color: {{.Visual.TextColor}};
-    opacity: 0.75;
+    opacity: 0.58;
   }
-  .info-question {
-    margin-top: 6px;
-    font-size: 12px;
+
+  /* ========== INFO CARD ========== */
+  .info-card {
+    background: {{.Visual.AccentColor}}08;
+    border-radius: 10px;
+    padding: 13px 15px;
+    border: 1px solid {{.Visual.AccentColor}}10;
+  }
+
+  .info-label {
+    font-size: 10px;
     color: {{.Visual.AccentColor}};
     opacity: 0.6;
-    font-style: italic;
+    margin-bottom: 7px;
+    letter-spacing: 1.5px;
+    font-weight: 600;
+    text-transform: uppercase;
   }
 
-  /* 幽灵 */
-  .ghost-names {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin-bottom: 8px;
-  }
-  .ghost-tag {
-    font-size: 11px;
+  .info-text {
+    font-size: 13.5px;
+    line-height: 1.85;
     color: {{.Visual.TextColor}};
-    opacity: 0.45;
-    background: {{.Visual.AccentColor}}10;
-    padding: 2px 8px;
-    border-radius: 2px;
-    border: 1px solid {{.Visual.AccentColor}}22;
+    opacity: 0.68;
   }
-  .ghost-comment {
-    font-size: 12px;
-    color: {{.Visual.TextColor}};
+
+  .info-question {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed {{.Visual.AccentColor}}25;
+    font-size: 12.5px;
+    color: {{.Visual.AccentColor}};
     opacity: 0.5;
     font-style: italic;
     line-height: 1.7;
   }
 
-  /* 诊断单独样式 */
+  /* ========== DIAGNOSIS ========== */
   .diagnosis-text {
-    font-size: 14px;
-    line-height: 1.8;
+    font-size: 14.5px;
+    line-height: 1.9;
     color: {{.Visual.TextColor}};
-    opacity: 0.8;
+    opacity: 0.75;
     font-weight: 500;
   }
 
+  /* ========== GHOST ========== */
+  .ghost-names {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+    margin-bottom: 12px;
+  }
+
+  .ghost-tag {
+    font-size: 12px;
+    color: {{.Visual.TextColor}};
+    opacity: 0.45;
+    background: {{.Visual.AccentColor}}0d;
+    padding: 4px 12px;
+    border-radius: 20px;
+    border: 1px solid {{.Visual.AccentColor}}18;
+  }
+
+  .ghost-comment {
+    font-size: 12.5px;
+    color: {{.Visual.TextColor}};
+    opacity: 0.4;
+    font-style: italic;
+    line-height: 1.8;
+  }
+
+  /* ========== FOOTER ========== */
   .footer {
-    padding: 12px 32px 18px;
+    padding: 10px 20px 16px;
     display: flex;
     justify-content: space-between;
     align-items: center;
   }
-  .footer-left { display: flex; align-items: center; gap: 6px; }
-  .footer-accent { width: 16px; height: 1px; background: {{.Visual.AccentColor}}; opacity: 0.4; }
-  .footer-text { font-size: 10px; color: {{.Visual.TextColor}}; opacity: 0.25; letter-spacing: 1.5px; }
-  .footer-no { font-size: 10px; color: {{.Visual.AccentColor}}; opacity: 0.3; letter-spacing: 2px; }
+
+  .footer-left {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+
+  .footer-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: {{.Visual.AccentColor}};
+    opacity: 0.2;
+  }
+
+  .footer-text {
+    font-size: 10px;
+    color: {{.Visual.TextColor}};
+    opacity: 0.18;
+    letter-spacing: 1px;
+  }
+
+  .footer-no {
+    font-size: 10px;
+    color: {{.Visual.AccentColor}};
+    opacity: 0.22;
+    letter-spacing: 2px;
+    font-variant-numeric: tabular-nums;
+  }
 </style>
 </head>
 <body>
 <div class="card">
-  <!-- header 同之前 -->
+
   <div class="header">
     <div class="header-watermark">{{.DateNo}}</div>
-    <div class="header-meta">
-      <div class="meta-line"></div>
-      <span class="meta-label">Daily Report</span>
-      <span class="meta-date">{{.Date}}</span>
+    <div class="header-top">
+      <div class="header-tag">
+        <div class="tag-dot"></div>
+        <span class="tag-text">Daily Report</span>
+      </div>
+      <span class="header-date">{{.Date}}</span>
     </div>
     <div class="title">{{.Title}}</div>
     <div class="role-line">
-      <div class="role-dot"></div>
+      <div class="role-bar"></div>
       <span class="role-text">{{.Role}}</span>
     </div>
   </div>
 
-  <div class="accent-divider"></div>
+  <div class="top-divider"></div>
 
-  <!-- 开场白 -->
   <div class="opening-wrap">
     <div class="opening-label">Opening</div>
     <div class="opening-text">{{.Opening}}</div>
   </div>
 
-  <div class="accent-divider"></div>
+  <div class="top-divider"></div>
 
-  <!-- MVP -->
-  <div class="section">
-    <div class="section-header">
-      <div class="section-line"></div>
-      <span class="section-title">{{.Theme.MvpHeader}}</span>
-    </div>
-    {{range $i, $m := .Report.MVP}}
-    <div class="mvp-item">
-      <span class="mvp-rank">{{rankStr $i}}</span>
-      <div class="mvp-right">
-        <div class="mvp-name-line">
-          <span class="mvp-name">{{$m.Nickname}}</span>
-          <span class="mvp-title">{{$m.Title}}</span>
+  <div class="sections-wrap">
+
+    <div class="section">
+      <div class="section-head">
+        <div class="section-head-bar"></div>
+        <span class="section-title">{{.Theme.MvpHeader}}</span>
+      </div>
+      <div class="section-body">
+        <div class="mvp-list">
+          {{range $i, $m := .Report.MVP}}
+          <div class="mvp-item">
+            <div class="mvp-rank-wrap">
+              <span class="mvp-rank">{{rankStr $i}}</span>
+            </div>
+            <div class="mvp-right">
+              <div class="mvp-name-line">
+                <span class="mvp-name">{{$m.Nickname}}</span>
+                <span class="mvp-badge">{{$m.Title}}</span>
+              </div>
+              <div class="mvp-comment">{{$m.Comment}}</div>
+            </div>
+          </div>
+          {{end}}
         </div>
-        <div class="mvp-comment">{{$m.Comment}}</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-head">
+        <div class="section-head-bar"></div>
+        <span class="section-title">{{.Theme.MomentHeader}}</span>
+      </div>
+      <div class="section-body">
+        <div class="info-card">
+          <div class="info-label">{{.Report.Moment.Time}}</div>
+          <div class="info-text">{{.Report.Moment.Comment}}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-head">
+        <div class="section-head-bar"></div>
+        <span class="section-title">{{.Theme.InteractionHeader}}</span>
+      </div>
+      <div class="section-body">
+        <div class="info-card">
+          <div class="info-label">{{.Report.Interaction.From}} → {{.Report.Interaction.To}}</div>
+          <div class="info-text">{{.Report.Interaction.Comment}}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-head">
+        <div class="section-head-bar"></div>
+        <span class="section-title">{{.Theme.TriviaHeader}}</span>
+      </div>
+      <div class="section-body">
+        <div class="info-card">
+          <div class="info-text">{{.Report.Trivia.Fact}}</div>
+          {{if .Report.Trivia.Question}}
+          <div class="info-question">{{.Report.Trivia.Question}}</div>
+          {{end}}
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-head">
+        <div class="section-head-bar"></div>
+        <span class="section-title">{{.Theme.DiagnosisHeader}}</span>
+      </div>
+      <div class="section-body">
+        <div class="diagnosis-text">{{.Report.Diagnosis}}</div>
+      </div>
+    </div>
+
+    {{if .Report.Ghosts.Names}}
+    <div class="section">
+      <div class="section-head">
+        <div class="section-head-bar"></div>
+        <span class="section-title">{{.Theme.GhostHeader}}</span>
+      </div>
+      <div class="section-body">
+        <div class="ghost-names">
+          {{range .Report.Ghosts.Names}}
+          <span class="ghost-tag">{{.}}</span>
+          {{end}}
+        </div>
+        {{if .Report.Ghosts.Comment}}
+        <div class="ghost-comment">{{.Report.Ghosts.Comment}}</div>
+        {{end}}
       </div>
     </div>
     {{end}}
-  </div>
 
-  <!-- 关键时刻 -->
-  <div class="section">
-    <div class="section-header">
-      <div class="section-line"></div>
-      <span class="section-title">{{.Theme.MomentHeader}}</span>
-    </div>
-    <div class="info-block">
-      <div class="info-time">{{.Report.Moment.Time}}</div>
-      <div class="info-text">{{.Report.Moment.Comment}}</div>
-    </div>
   </div>
-
-  <!-- 社交图谱 -->
-  <div class="section">
-    <div class="section-header">
-      <div class="section-line"></div>
-      <span class="section-title">{{.Theme.InteractionHeader}}</span>
-    </div>
-    <div class="info-block">
-      <div class="info-time">{{.Report.Interaction.From}} → {{.Report.Interaction.To}}</div>
-      <div class="info-text">{{.Report.Interaction.Comment}}</div>
-    </div>
-  </div>
-
-  <!-- 冷知识 -->
-  <div class="section">
-    <div class="section-header">
-      <div class="section-line"></div>
-      <span class="section-title">{{.Theme.TriviaHeader}}</span>
-    </div>
-    <div class="info-block">
-      <div class="info-text">{{.Report.Trivia.Fact}}</div>
-      <div class="info-question">{{.Report.Trivia.Question}}</div>
-    </div>
-  </div>
-
-  <!-- 群体诊断 -->
-  <div class="section">
-    <div class="section-header">
-      <div class="section-line"></div>
-      <span class="section-title">{{.Theme.DiagnosisHeader}}</span>
-    </div>
-    <div class="diagnosis-text">{{.Report.Diagnosis}}</div>
-  </div>
-
-  <!-- 失踪人口 -->
-  {{if .Report.Ghosts.Names}}
-  <div class="section">
-    <div class="section-header">
-      <div class="section-line"></div>
-      <span class="section-title">{{.Theme.GhostHeader}}</span>
-    </div>
-    <div class="ghost-names">
-      {{range .Report.Ghosts.Names}}
-      <span class="ghost-tag">{{.}}</span>
-      {{end}}
-    </div>
-    <div class="ghost-comment">{{.Report.Ghosts.Comment}}</div>
-  </div>
-  {{end}}
 
   <div class="footer">
     <div class="footer-left">
-      <div class="footer-accent"></div>
-      <span class="footer-text">GenerateBy {{.BotNickName}}</span>
+      <div class="footer-dot"></div>
+      <span class="footer-text">Generated by {{.BotNickName}}</span>
     </div>
     <span class="footer-no">NO.{{.DateNo}}</span>
   </div>
+
 </div>
 </body>
 </html>`
