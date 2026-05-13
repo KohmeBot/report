@@ -90,7 +90,11 @@ func (p *PluginReport) OnBuild(engine plugin.Engine) {
 			group = ctx.Event.GroupID
 		}
 
-		report, err := p.GetReport(group, Yesterday(), p.GetTheme(Yesterday()))
+		theme := p.GetTheme(Yesterday())
+
+		time.Sleep(2 * time.Second)
+
+		report, err := p.GetReport(group, Yesterday(), theme)
 		if err != nil {
 			p.env.Error(ctx, err)
 			return
@@ -163,7 +167,7 @@ func (p *PluginReport) startSendTicker() {
 		if p.conf.SendGroups != nil {
 			iter = slices.Values(p.conf.SendGroups)
 		}
-
+		time.Sleep(2 * time.Second)
 		p.env.UseBot(func(ctx *zero.Ctx) {
 			for group := range iter {
 				report, err := p.GetReport(group, yesterday, theme)
