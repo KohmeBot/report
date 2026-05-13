@@ -156,7 +156,7 @@ func (p *PluginReport) GetReport(group int64, t time.Time, theme *daily.DailyThe
 func (p *PluginReport) startSendTicker() {
 	c := cron.New()
 	var id cron.EntryID
-	id, err := c.AddFunc("0 8 * * *", func() {
+	id, err := c.AddFunc("0 9 * * *", func() {
 		yesterday := Yesterday()
 		theme := p.GetTheme(yesterday)
 		iter := p.env.Groups().RangeGroup()
