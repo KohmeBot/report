@@ -61,9 +61,6 @@ func (g *Generator) GenerateReport(group int64, t time.Time, theme *DailyTheme) 
 
 	data := g.buildPrompt(report)
 	req := fmt.Sprintf(reportPrompt,
-		theme.Theme,
-		theme.Role,
-		theme.Style,
 		theme.String(),
 		data,
 	)

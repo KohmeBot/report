@@ -1,7 +1,6 @@
 package daily
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -111,12 +110,33 @@ type DailyTheme struct {
 }
 
 func (d *DailyTheme) String() string {
-	b, _ := json.Marshal(d)
-	var tmp map[string]any
-	_ = json.Unmarshal(b, &tmp)
-	delete(tmp, "visual")
-	b, _ = json.Marshal(tmp)
-	return string(b)
+	return fmt.Sprintf(`
+# 日报主题
+日报主题：
+%s
+你的角色：
+%s
+整体写作风格：
+%s
+用户点评格式:
+%s
+幽灵成员格式:
+%s
+互动描述格式:
+%s
+冷知识格式:
+%s
+禁止脱离以上世界观。
+所有文案必须模仿上述格式结构与语气。
+`,
+		d.Theme,
+		d.Role,
+		d.Style,
+		d.UserFormat,
+		d.GhostFormat,
+		d.InteractionFormat,
+		d.TriviaFormat,
+	)
 }
 
 type ThemeVisual struct {
