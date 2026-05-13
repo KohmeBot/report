@@ -7,8 +7,7 @@ import (
 	"github.com/chromedp/chromedp"
 	"github.com/sirupsen/logrus"
 	"html/template"
-	"os"
-	"path/filepath"
+	"net/url"
 	"time"
 )
 
@@ -452,14 +451,9 @@ func (r *reportTemplateData) rankStr(i int) string {
 	return []string{"01", "02", "03", "04", "05"}[i]
 }
 
-func (r *reportTemplateData) renderReportImage(chromeAddr string, group int64, path string) ([]byte, error) {
+func (r *reportTemplateData) renderReportImage(chromeAddr string, group int64) ([]byte, error) {
 	var err error
-	if !filepath.IsAbs(path) {
-		path, err = filepath.Abs(path)
-	}
-	if err != nil {
-		return nil, err
-	}
+
 	funcMap := template.FuncMap{
 		"rankStr": r.rankStr,
 	}
@@ -475,14 +469,7 @@ func (r *reportTemplateData) renderReportImage(chromeAddr string, group int64, p
 		return nil, err
 	}
 
-	// 写成临时文件，chromedp加载本地文件最稳定
-	tmpFile, err := os.CreateTemp(path, "report-*.html")
-	if err != nil {
-		return nil, err
-	}
-	defer os.Remove(tmpFile.Name())
-	tmpFile.Write(buf.Bytes())
-	tmpFile.Close()
+	htmlData := url.PathEscape(buf.String())
 
 	// 一分钟超时
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
@@ -497,7 +484,7 @@ func (r *reportTemplateData) renderReportImage(chromeAddr string, group int64, p
 	ctx, cancel = chromedp.NewContext(ctx)
 	defer cancel()
 
-	navigate := "file://" + tmpFile.Name()
+	navigate := "data:text/html;charset=utf-8," + htmlData
 
 	logrus.Infof("navigate: %s", navigate)
 

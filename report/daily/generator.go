@@ -93,12 +93,7 @@ func (g *Generator) GenerateReport(group int64, t time.Time, theme *DailyTheme) 
 
 	r := newReportTemplateData(t, theme, reportRes, g.botNickName())
 
-	path, err := g.env.FilePath()
-	if err != nil {
-		logrus.Errorf("获取文件路径失败: %v", err)
-	}
-
-	imgBytes, err := r.renderReportImage(g.chromeAddr, group, path)
+	imgBytes, err := r.renderReportImage(g.chromeAddr, group)
 	if err != nil {
 		logrus.Errorf("图片生成失败: %v", err)
 	}
