@@ -24,9 +24,21 @@ func (a *Aggregator) Aggregate(groupID int64, date string) (*DailyReport, error)
 		logrus.Infof("DailyReport %d %s 生成完毕，耗时 %s", groupID, date, latency)
 	}()
 
+	start, err := time.ParseInLocation("2006-01-02", date, time.Local)
+	if err != nil {
+		return nil, err
+	}
+	end := start.Add(24 * time.Hour)
+
 	// 1. 拉取当天所有消息
 	var messages []GroupMessage
-	err := a.db.Where("group_id = ? AND DATE(created_at) = ?", groupID, date).
+	err = a.db.
+		Where(
+			"group_id = ? AND created_at >= ? AND created_at < ?",
+			groupID,
+			start,
+			end,
+		).
 		Order("created_at ASC").
 		Find(&messages).Error
 	if err != nil {
