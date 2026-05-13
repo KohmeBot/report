@@ -54,7 +54,7 @@ fate,jojo,mygo,赛马娘,黑暗之魂,怪物猎人,生化危机
     "header_color": "顶部区域背景色，十六进制，可以比bg_color深一点",
     "font_style": "字体风格，从以下选一个：normal/bold/italic/monospace",
     "border_style": "边框风格，从以下选一个：none/solid/dashed/double/glow",
-    "emoji_decoration": "装饰用的emoji，1-2个，代表这个作品，放在标题旁边"
+    "emoji_decoration": "纯字符串,装饰用的emoji，1-2个，代表这个作品，放在标题旁边"
   }
 }
 `

@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/chromedp/chromedp"
+	"github.com/sirupsen/logrus"
 	"html/template"
 	"os"
 	"path/filepath"
@@ -496,6 +497,10 @@ func (r *reportTemplateData) renderReportImage(chromeAddr string, group int64, p
 	ctx, cancel = chromedp.NewContext(ctx)
 	defer cancel()
 
+	navigate := "file://" + tmpFile.Name()
+
+	logrus.Infof("navigate: %s", navigate)
+
 	var imgBuf []byte
 	err = chromedp.Run(ctx,
 		chromedp.EmulateViewport(
@@ -503,7 +508,7 @@ func (r *reportTemplateData) renderReportImage(chromeAddr string, group int64, p
 			1000,
 			chromedp.EmulateScale(3),
 		),
-		chromedp.Navigate(tmpFile.Name()),
+		chromedp.Navigate(navigate),
 		// 等待内容渲染完成
 		chromedp.WaitReady(".card"),
 		// 截取card元素，不是整个页面
