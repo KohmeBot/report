@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/chromedp/chromedp"
-	"github.com/sirupsen/logrus"
 	"html/template"
 	"net/url"
 	"time"
@@ -486,7 +485,7 @@ func (r *reportTemplateData) renderReportImage(chromeAddr string, group int64) (
 
 	navigate := "data:text/html;charset=utf-8," + htmlData
 
-	logrus.Infof("navigate: %s", navigate)
+	//logrus.Infof("navigate: %s", navigate)
 
 	var imgBuf []byte
 	err = chromedp.Run(ctx,

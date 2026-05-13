@@ -99,7 +99,7 @@ func (p *PluginReport) OnBuild(engine plugin.Engine) {
 		switch {
 		case p.conf.OnlyText:
 			ctx.Send(report.Text)
-		case report.Image != nil:
+		case len(report.Image) > 0:
 			ctx.Send(message.ImageBytes(report.Image))
 		default:
 			ctx.Send(report.Text)
@@ -174,7 +174,7 @@ func (p *PluginReport) startSendTicker() {
 				switch {
 				case p.conf.OnlyText:
 					ctx.SendGroupMessage(group, report.Text)
-				case report.Image != nil:
+				case len(report.Image) > 0:
 					ctx.SendGroupMessage(group, message.ImageBytes(report.Image))
 				default:
 					ctx.SendGroupMessage(group, report.Text)

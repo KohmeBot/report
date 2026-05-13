@@ -1,7 +1,6 @@
 package daily
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -100,7 +99,7 @@ func (g *Generator) GenerateReport(group int64, t time.Time, theme *DailyTheme) 
 
 	return Report{
 		Text:  reportRes.String(theme),
-		Image: []byte(base64.StdEncoding.EncodeToString(imgBytes)),
+		Image: imgBytes,
 	}, nil
 }
 
