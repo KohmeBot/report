@@ -1,6 +1,11 @@
 package daily
 
-import "time"
+import (
+	"encoding/json"
+	"fmt"
+	"strings"
+	"time"
+)
 
 type GroupDailyStat struct {
 	ID      uint   `gorm:"primarykey"`
@@ -101,4 +106,105 @@ type DailyTheme struct {
 	TriviaFormat      string `json:"trivia_format"`
 	DiagnosisHeader   string `json:"diagnosis_header"`
 	GhostHeader       string `json:"ghost_header"`
+
+	Visual ThemeVisual `json:"visual"`
+}
+
+func (d *DailyTheme) String() string {
+	b, _ := json.Marshal(d)
+	var tmp map[string]any
+	_ = json.Unmarshal(b, &tmp)
+	delete(tmp, "visual")
+	b, _ = json.Marshal(tmp)
+	return string(b)
+}
+
+type ThemeVisual struct {
+	BgColor         string `json:"bg_color"`
+	TextColor       string `json:"text_color"`
+	AccentColor     string `json:"accent_color"`
+	HeaderColor     string `json:"header_color"`
+	FontStyle       string `json:"font_style"`
+	BorderStyle     string `json:"border_style"`
+	EmojiDecoration string `json:"emoji_decoration"`
+}
+
+type ReportJSON struct {
+	Title string `json:"title"`
+	MVP   []struct {
+		Nickname string `json:"nickname"`
+		Title    string `json:"title"`
+		Comment  string `json:"comment"`
+	} `json:"mvp"`
+	Moment struct {
+		Time    string `json:"time"`
+		Comment string `json:"comment"`
+	} `json:"moment"`
+	Interaction struct {
+		From    string `json:"from"`
+		To      string `json:"to"`
+		Comment string `json:"comment"`
+	} `json:"interaction"`
+	Trivia struct {
+		Fact     string `json:"fact"`
+		Question string `json:"question"`
+	} `json:"trivia"`
+	Diagnosis string `json:"diagnosis"`
+	Ghosts    struct {
+		Names   []string `json:"names"`
+		Comment string   `json:"comment"`
+	} `json:"ghosts"`
+}
+
+func (r ReportJSON) String(theme *DailyTheme) string {
+	var sb strings.Builder
+
+	sb.WriteString(theme.Opening + "\n")
+
+	// MVP
+	if len(r.MVP) > 0 {
+		sb.WriteString(theme.MvpHeader + "\n")
+		for i, m := range r.MVP {
+			sb.WriteString(fmt.Sprintf("%d. %s · %s\n%s\n\n", i+1, m.Nickname, m.Title, m.Comment))
+		}
+	}
+
+	// 关键时刻
+	if r.Moment.Comment != "" {
+		sb.WriteString(theme.MomentHeader + "\n")
+		sb.WriteString(fmt.Sprintf("[%s] %s\n\n", r.Moment.Time, r.Moment.Comment))
+	}
+
+	// 社交图谱
+	if r.Interaction.Comment != "" {
+		sb.WriteString(theme.InteractionHeader + "\n")
+		sb.WriteString(fmt.Sprintf("%s → %s\n%s\n\n", r.Interaction.From, r.Interaction.To, r.Interaction.Comment))
+	}
+
+	// 冷知识
+	if r.Trivia.Fact != "" {
+		sb.WriteString(theme.TriviaHeader + "\n")
+		sb.WriteString(r.Trivia.Fact + "\n")
+		if r.Trivia.Question != "" {
+			sb.WriteString(r.Trivia.Question + "\n")
+		}
+		sb.WriteString("\n")
+	}
+
+	// 群体诊断
+	if r.Diagnosis != "" {
+		sb.WriteString(theme.DiagnosisHeader + "\n")
+		sb.WriteString(r.Diagnosis + "\n\n")
+	}
+
+	// 失踪人口
+	if len(r.Ghosts.Names) > 0 {
+		sb.WriteString(theme.GhostHeader + "\n")
+		sb.WriteString(strings.Join(r.Ghosts.Names, " / ") + "\n")
+		if r.Ghosts.Comment != "" {
+			sb.WriteString(r.Ghosts.Comment + "\n")
+		}
+	}
+
+	return strings.TrimRight(sb.String(), "\n")
 }

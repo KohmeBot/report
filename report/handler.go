@@ -3,6 +3,7 @@ package report
 import (
 	"github.com/fumiama/cron"
 	"github.com/wdvxdr1123/ZeroBot/extension"
+	"github.com/wdvxdr1123/ZeroBot/message"
 	"strconv"
 
 	"github.com/kohmebot/plugin/v2"
@@ -89,12 +90,21 @@ func (p *PluginReport) OnBuild(engine plugin.Engine) {
 			group = ctx.Event.GroupID
 		}
 
-		text, err := p.GetReport(group, Yesterday(), p.GetTheme(Yesterday()))
+		report, err := p.GetReport(group, Yesterday(), p.GetTheme(Yesterday()))
 		if err != nil {
 			p.env.Error(ctx, err)
 			return
 		}
-		ctx.Send(text)
+
+		switch {
+		case p.conf.OnlyText:
+			ctx.Send(report.Text)
+		case report.Image != nil:
+			ctx.Send(message.ImageBytes(report.Image))
+		default:
+			ctx.Send(report.Text)
+		}
+
 	})
 }
 
@@ -103,7 +113,7 @@ func (p *PluginReport) GetTheme(t time.Time) (theme *daily.DailyTheme) {
 		logrus.Infof("今日主题: %+v", theme)
 	}()
 	var err error
-	g := daily.NewGenerator(p.db, p.invoker)
+	g := daily.NewGenerator(p.env, p.db, p.invoker, p.conf.ChromeAddr())
 
 	if !p.conf.RegenTheme {
 		theme, err = g.GetTodayTheme(t)
@@ -134,9 +144,9 @@ func (p *PluginReport) GetTheme(t time.Time) (theme *daily.DailyTheme) {
 	return theme
 }
 
-func (p *PluginReport) GetReport(group int64, t time.Time, theme *daily.DailyTheme) (string, error) {
+func (p *PluginReport) GetReport(group int64, t time.Time, theme *daily.DailyTheme) (daily.Report, error) {
 
-	g := daily.NewGenerator(p.db, p.invoker)
+	g := daily.NewGenerator(p.env, p.db, p.invoker, p.conf.ChromeAddr())
 
 	report, err := g.GenerateReport(group, t, theme)
 
@@ -156,12 +166,20 @@ func (p *PluginReport) startSendTicker() {
 
 		p.env.UseBot(func(ctx *zero.Ctx) {
 			for group := range iter {
-				text, err := p.GetReport(group, yesterday, theme)
+				report, err := p.GetReport(group, yesterday, theme)
 				if err != nil {
 					p.env.Error(ctx, err)
 					return
 				}
-				ctx.SendGroupMessage(group, text)
+				switch {
+				case p.conf.OnlyText:
+					ctx.SendGroupMessage(group, report.Text)
+				case report.Image != nil:
+					ctx.SendGroupMessage(group, message.ImageBytes(report.Image))
+				default:
+					ctx.SendGroupMessage(group, report.Text)
+				}
+
 				time.Sleep(3 * time.Second)
 			}
 		})

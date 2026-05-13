@@ -1,11 +1,14 @@
 package daily
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/kohmebot/chatai/chatai/chataisdk"
+	"github.com/kohmebot/plugin/v2"
 	"github.com/sirupsen/logrus"
+	zero "github.com/wdvxdr1123/ZeroBot"
 	"gorm.io/gorm"
 	"maps"
 	"math/rand"
@@ -14,30 +17,47 @@ import (
 	"time"
 )
 
-type Generator struct {
-	db      *gorm.DB
-	invoker *chataisdk.ChatAIInvoker
+type Report struct {
+	Text  string
+	Image []byte
 }
 
-func NewGenerator(db *gorm.DB, invoker *chataisdk.ChatAIInvoker) *Generator {
+type Generator struct {
+	db         *gorm.DB
+	invoker    *chataisdk.ChatAIInvoker
+	env        plugin.Env
+	chromeAddr string
+}
+
+func NewGenerator(env plugin.Env, db *gorm.DB, invoker *chataisdk.ChatAIInvoker, chromeAddr string) *Generator {
 	return &Generator{
-		db:      db,
-		invoker: invoker,
+		env:        env,
+		db:         db,
+		invoker:    invoker,
+		chromeAddr: chromeAddr,
 	}
 }
 
-func (g *Generator) GenerateReport(group int64, t time.Time, theme *DailyTheme) (string, error) {
+func (g *Generator) botNickName() string {
+	//  NICKNAME
+	if len(zero.BotConfig.NickName) > 0 {
+		return zero.BotConfig.NickName[0]
+	}
+	return "bot"
+}
+
+func (g *Generator) GenerateReport(group int64, t time.Time, theme *DailyTheme) (Report, error) {
 	date := t.Format("2006-01-02")
 
 	// 生成日报
 	aggregator := NewAggregator(g.db)
 	report, err := aggregator.Aggregate(group, date)
 	if err != nil {
-		return "", fmt.Errorf("聚合失败: %w", err)
+		return Report{}, fmt.Errorf("聚合失败: %w", err)
 	}
 	if report == nil {
 		logrus.Infof("%d 昨日暂无数据", group)
-		return "", nil
+		return Report{}, nil
 	}
 
 	data := g.buildPrompt(report)
@@ -45,35 +65,24 @@ func (g *Generator) GenerateReport(group int64, t time.Time, theme *DailyTheme) 
 		theme.Theme,
 		theme.Role,
 		theme.Style,
+		theme.String(),
 		data,
-		theme.Opening,
-		// 核心人物
-		theme.MvpHeader,
-		theme.UserFormat,
-		// 关键时刻
-		theme.MomentHeader,
-		theme.MomentFormat,
-		// 社交图谱
-		theme.InteractionHeader,
-		theme.InteractionFormat,
-		// 冷知识
-		theme.TriviaHeader,
-		theme.TriviaFormat,
-		// 群体诊断
-		theme.DiagnosisHeader,
-		// 失踪人口
-		theme.GhostHeader,
-		theme.GhostFormat,
 	)
 
-	largeModel, err := g.invoker.NewModel(systemPrompt, true, false, false)
+	largeModel, err := g.invoker.NewModel(systemPrompt, true, false, true)
 	if err != nil {
-		return "", err
+		return Report{}, err
 	}
 
 	res, err := g.invoker.DoRequestWithModel(req, largeModel)
 	if err != nil {
-		return "", fmt.Errorf("AI调用失败: %w", err)
+		return Report{}, fmt.Errorf("AI调用失败: %w", err)
+	}
+
+	var reportRes ReportJSON
+	err = json.Unmarshal([]byte(res), &reportRes)
+	if err != nil {
+		return Report{}, fmt.Errorf("JSON解析失败: %w", err)
 	}
 
 	dataJSON, _ := json.Marshal(report)
@@ -82,7 +91,22 @@ func (g *Generator) GenerateReport(group int64, t time.Time, theme *DailyTheme) 
 		logrus.Warnf("持久化失败: %v", err)
 	}
 
-	return res, nil
+	r := newReportTemplateData(t, theme, reportRes, g.botNickName())
+
+	path, err := g.env.FilePath()
+	if err != nil {
+		logrus.Errorf("获取文件路径失败: %v", err)
+	}
+
+	imgBytes, err := r.renderReportImage(g.chromeAddr, group, path)
+	if err != nil {
+		logrus.Errorf("图片生成失败: %v", err)
+	}
+
+	return Report{
+		Text:  reportRes.String(theme),
+		Image: []byte(base64.StdEncoding.EncodeToString(imgBytes)),
+	}, nil
 }
 
 func (g *Generator) saveReport(group int64, date, data, report, theme string) error {
@@ -446,6 +470,15 @@ var themes = []*DailyTheme{
 		TriviaFormat:      "用装备词条的形式揭示这个反直觉的数据，格式像暗魂的武器说明",
 		DiagnosisHeader:   "🌡️ 世界褪色程度",
 		GhostHeader:       "👻 空洞化名单",
+		Visual: ThemeVisual{
+			BgColor:         "#0d0d0d",
+			TextColor:       "#c8b89a",
+			AccentColor:     "#ff6b35",
+			HeaderColor:     "#1a1a1a",
+			FontStyle:       "normal",
+			BorderStyle:     "glow",
+			EmojiDecoration: "💀🔥",
+		},
 	},
 	{
 		Theme:             "碧蓝档案",
@@ -463,6 +496,15 @@ var themes = []*DailyTheme{
 		TriviaFormat:      "用老师批改作业时的语气揭示这个数据，结尾加一句无奈感叹",
 		DiagnosisHeader:   "🌡️ 基沃托斯今日现状",
 		GhostHeader:       "👻 旷课名单",
+		Visual: ThemeVisual{
+			BgColor:         "#f0f7ff",
+			TextColor:       "#2c3e50",
+			AccentColor:     "#4a9eff",
+			HeaderColor:     "#ddeeff",
+			FontStyle:       "normal",
+			BorderStyle:     "solid",
+			EmojiDecoration: "📋✨",
+		},
 	},
 	{
 		Theme:             "JOJO奇妙冒险",
@@ -480,5 +522,14 @@ var themes = []*DailyTheme{
 		TriviaFormat:      "用「实际上这个能力还有一个隐藏效果」的格式揭示这个反直觉数据",
 		DiagnosisHeader:   "🌡️ 群聊空间扭曲程度",
 		GhostHeader:       "👻 时间停止名单",
+		Visual: ThemeVisual{
+			BgColor:         "#1a0a2e",
+			TextColor:       "#e8d5ff",
+			AccentColor:     "#c0a0ff",
+			HeaderColor:     "#2d1052",
+			FontStyle:       "bold",
+			BorderStyle:     "double",
+			EmojiDecoration: "🌟⭐",
+		},
 	},
 }

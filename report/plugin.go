@@ -60,14 +60,12 @@ func (p *PluginReport) OnBoot() {
 	go p.r.batchWriter()
 }
 
-func (p *PluginReport) OnHelp(ctx *zero.Ctx) {
-
-}
+func (p *PluginReport) OnHelp(ctx *zero.Ctx) {}
 
 func (p *PluginReport) Name() string {
 	return "report"
 }
 
 func (p *PluginReport) Version() string {
-	return "v0.0.1-alpha.13"
+	return "v0.0.1-alpha.14"
 }
