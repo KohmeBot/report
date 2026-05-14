@@ -6,6 +6,26 @@ import (
 	"time"
 )
 
+func filterMessages(msgs []GroupMessage) []GroupMessage {
+	res := make([]GroupMessage, 0, len(msgs))
+	// 只取文本类消息参与筛选
+	for _, m := range msgs {
+		if m.MsgType != MsgTypeText || m.Content == "" {
+			continue
+		}
+		// 像网页链接之类的不应该作为代表发言
+		if strings.Contains(m.Content, "http://") {
+			continue
+		}
+		if strings.Contains(m.Content, "https://") {
+			continue
+		}
+		res = append(res, m)
+	}
+	return res
+
+}
+
 // SampleMessages 从一个人的所有发言里筛出最有代表性的4条
 // msgs 必须按 CreatedAt 升序
 func SampleMessages(msgs []GroupMessage) []string {
@@ -13,13 +33,9 @@ func SampleMessages(msgs []GroupMessage) []string {
 		return nil
 	}
 
-	// 只取文本类消息参与筛选
-	textMsgs := make([]GroupMessage, 0, len(msgs))
-	for _, m := range msgs {
-		if m.MsgType == MsgTypeText && m.Content != "" {
-			textMsgs = append(textMsgs, m)
-		}
-	}
+	// 清洗
+	textMsgs := filterMessages(msgs)
+
 	if len(textMsgs) == 0 {
 		return nil
 	}
@@ -159,7 +175,7 @@ func pickMostIsolated(msgs []GroupMessage, used map[uint]bool) int {
 		}
 
 		// 找前一条未used消息的时间
-		prevGap := time.Duration(m.Hour) * time.Hour // 兜底：距当天开始的时间
+		prevGap := time.Duration(0)
 		for j := i - 1; j >= 0; j-- {
 			if !used[msgs[j].ID] {
 				prevGap = m.CreatedAt.Sub(msgs[j].CreatedAt)
@@ -168,7 +184,7 @@ func pickMostIsolated(msgs []GroupMessage, used map[uint]bool) int {
 		}
 
 		// 找后一条未used消息的时间
-		nextGap := time.Duration(23-m.Hour) * time.Hour // 兜底：距当天结束的时间
+		nextGap := msgs[len(msgs)].CreatedAt.Sub(msgs[0].CreatedAt)
 		for j := i + 1; j < len(msgs); j++ {
 			if !used[msgs[j].ID] {
 				nextGap = msgs[j].CreatedAt.Sub(m.CreatedAt)
