@@ -309,14 +309,30 @@ func (g *Generator) buildUserBlock(rank int, stat UserStat) string {
 	if stat.EllipsisCount > 0 {
 		textStats = append(textStats, fmt.Sprintf("省略号%d", stat.EllipsisCount))
 	}
-	if stat.BurstCount > 0 {
-		textStats = append(textStats, fmt.Sprintf("连发%d次", stat.BurstCount))
-	}
 	if stat.LonelyCount > 0 && stat.MsgCount > 0 {
 		textStats = append(textStats, fmt.Sprintf("无人回应%d条(%d%%)", stat.LonelyCount, stat.LonelyCount*100/stat.MsgCount))
 	}
 	if len(textStats) > 0 {
 		sb.WriteString(fmt.Sprintf("   文字：%s\n", strings.Join(textStats, "/")))
+	}
+
+	// 发言节奏
+	rhythm := stat.Rhythm
+	rhythmStats := []string{}
+	if rhythm.AvgInterval > 0 {
+		rhythmStats = append(rhythmStats, fmt.Sprintf("均间隔%d分钟", int(rhythm.AvgInterval.Minutes())))
+	}
+	if rhythm.LongestSilence > 0 {
+		rhythmStats = append(rhythmStats, fmt.Sprintf("最长沉默%d分钟", int(rhythm.LongestSilence.Minutes())))
+	}
+	if rhythm.BurstCount > 0 {
+		rhythmStats = append(rhythmStats, fmt.Sprintf("连续发言%d次(最多单次%d条)", rhythm.BurstCount, rhythm.BurstMaxSize))
+	}
+	if rhythm.ActivePeriods > 1 {
+		rhythmStats = append(rhythmStats, fmt.Sprintf("分%d个时间段活跃", rhythm.ActivePeriods))
+	}
+	if len(rhythmStats) > 0 {
+		sb.WriteString(fmt.Sprintf("   节奏：%s\n", strings.Join(rhythmStats, "/")))
 	}
 
 	// 复读（有就列出来，让AI判断梗点）

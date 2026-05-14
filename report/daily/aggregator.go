@@ -160,7 +160,7 @@ func (a *Aggregator) calcUserStats(userMap map[User][]GroupMessage, allGroupMsgs
 		textContents := make([]string, 0)
 
 		// ---------- 逐条消息遍历 ----------
-		for i, msg := range msgs {
+		for _, msg := range msgs {
 			stat.MsgCount++
 			stat.MsgTypeCount[msg.MsgType]++
 
@@ -185,13 +185,6 @@ func (a *Aggregator) calcUserStats(userMap map[User][]GroupMessage, allGroupMsgs
 				stat.NightOwl = true
 			}
 
-			// 连发检测：当前消息往前看，60秒内自己连发了3条
-			if i >= 2 {
-				d := msgs[i].CreatedAt.Sub(msgs[i-2].CreatedAt)
-				if d <= 60*time.Second {
-					stat.BurstCount++
-				}
-			}
 		}
 
 		// ---------- 孤独指数 & 被回复数（扫群时间线）----------
@@ -223,6 +216,9 @@ func (a *Aggregator) calcUserStats(userMap map[User][]GroupMessage, allGroupMsgs
 				stat.LonelyCount++
 			}
 		}
+
+		// 统计发言节奏
+		stat.Rhythm = calcRhythm(msgs)
 
 		// BeReplied：群里的 reply at 类型消息里，targetID == 当前用户的数量
 		for _, gm := range allGroupMsgs {
@@ -266,6 +262,58 @@ func (a *Aggregator) calcUserStats(userMap map[User][]GroupMessage, allGroupMsgs
 	}
 
 	return stats
+}
+
+func calcRhythm(msgs []GroupMessage) RhythmStat {
+	if len(msgs) <= 1 {
+		return RhythmStat{}
+	}
+
+	stat := RhythmStat{}
+	totalInterval := time.Duration(0)
+
+	// 计算间隔
+	intervals := make([]time.Duration, 0, len(msgs)-1)
+	for i := 1; i < len(msgs); i++ {
+		gap := msgs[i].CreatedAt.Sub(msgs[i-1].CreatedAt)
+		intervals = append(intervals, gap)
+		totalInterval += gap
+		if gap > stat.LongestSilence {
+			stat.LongestSilence = gap
+		}
+	}
+
+	stat.AvgInterval = totalInterval / time.Duration(len(intervals))
+
+	// 活跃时间段：间隔超过30分钟算断开
+	stat.ActivePeriods = 1
+	for _, gap := range intervals {
+		if gap > 30*time.Minute {
+			stat.ActivePeriods++
+		}
+	}
+
+	// 爆发检测：滑动窗口，5分钟内发了5条以上
+	for i := 0; i < len(msgs); i++ {
+		burstSize := 1
+		for j := i + 1; j < len(msgs); j++ {
+			if msgs[j].CreatedAt.Sub(msgs[i].CreatedAt) <= 5*time.Minute {
+				burstSize++
+			} else {
+				break
+			}
+		}
+		if burstSize >= 5 {
+			stat.BurstCount++
+			if burstSize > stat.BurstMaxSize {
+				stat.BurstMaxSize = burstSize
+			}
+			// 跳过这次爆发已统计的消息
+			i += burstSize - 1
+		}
+	}
+
+	return stat
 }
 
 // findRepeatMsg 找出今天复读次数最多的那条发言

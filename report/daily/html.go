@@ -407,6 +407,10 @@ const reportHTML = `<!DOCTYPE html>
     letter-spacing: 2px;
     font-variant-numeric: tabular-nums;
   }
+
+  .info-card-mt {
+      margin-top: 8px;
+  }
 </style>
 </head>
 <body>
@@ -490,20 +494,23 @@ const reportHTML = `<!DOCTYPE html>
       </div>
     </div>
 
-    <div class="section">
-      <div class="section-head">
-        <div class="section-head-bar"></div>
-        <span class="section-title">{{.Theme.TriviaHeader}}</span>
-      </div>
-      <div class="section-body">
-        <div class="info-card">
-          <div class="info-text">{{.Report.Trivia.Fact}}</div>
-          {{if .Report.Trivia.Question}}
-          <div class="info-question">{{.Report.Trivia.Question}}</div>
-          {{end}}
-        </div>
-      </div>
-    </div>
+	<!-- 冷知识 -->
+	<div class="section">
+	  <div class="section-head">
+		<div class="section-head-bar"></div>
+		<span class="section-title">{{.Theme.TriviaHeader}}</span>
+	  </div>
+	  <div class="section-body">
+		{{range $i, $t := .Report.Trivia}}
+		<div class="info-card{{if gt $i 0}} info-card-mt{{end}}">
+		  <div class="info-text">{{$t.Fact}}</div>
+		  {{if $t.Question}}
+		  <div class="info-question">{{$t.Question}}</div>
+		  {{end}}
+		</div>
+		{{end}}
+	  </div>
+	</div>
 
     <div class="section">
       <div class="section-head">

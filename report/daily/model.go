@@ -62,8 +62,8 @@ type UserStat struct {
 	EllipsisCount int // 省略号数量（……），衡量沉默/无奈程度
 
 	// 发言节奏
-	BurstCount  int // 连发行为次数：60秒内连发3条以上算一次burst
-	LonelyCount int // 发出后5分钟内无人回应的消息数（孤独指数）
+	Rhythm      RhythmStat // 发言节奏
+	LonelyCount int        // 发出后5分钟内无人回应的消息数（孤独指数）
 
 	// 词汇特征
 	VocabSize int // 今天用了多少种不同的词（去重后），衡量表达丰富度
@@ -76,6 +76,15 @@ func (s *UserStat) totalInteraction() int {
 		total += count
 	}
 	return total
+}
+
+// RhythmStat 发言节奏统计
+type RhythmStat struct {
+	BurstCount     int           // 爆发次数：5分钟内发了5条以上算一次爆发
+	BurstMaxSize   int           // 最大单次爆发条数
+	LongestSilence time.Duration // 两条发言之间最长的沉默时间
+	AvgInterval    time.Duration // 平均发言间隔
+	ActivePeriods  int           // 活跃时间段数量（间隔超过30分钟算切换一次）
 }
 
 // TimeStat 时间活跃度
@@ -177,7 +186,7 @@ type ReportJSON struct {
 		Type    string `json:"type"`
 		Comment string `json:"comment"`
 	} `json:"interaction"`
-	Trivia struct {
+	Trivia []struct {
 		Fact     string `json:"fact"`
 		Question string `json:"question"`
 	} `json:"trivia"`
@@ -214,13 +223,15 @@ func (r ReportJSON) String(theme *DailyTheme) string {
 	}
 
 	// 冷知识
-	if r.Trivia.Fact != "" {
+	if len(r.Trivia) > 0 {
 		sb.WriteString(theme.TriviaHeader + "\n")
-		sb.WriteString(r.Trivia.Fact + "\n")
-		if r.Trivia.Question != "" {
-			sb.WriteString(r.Trivia.Question + "\n")
+		for _, t := range r.Trivia {
+			sb.WriteString(t.Fact + "\n")
+			if t.Question != "" {
+				sb.WriteString(t.Question + "\n")
+			}
+			sb.WriteString("\n")
 		}
-		sb.WriteString("\n")
 	}
 
 	// 群体诊断
