@@ -184,7 +184,7 @@ func pickMostIsolated(msgs []GroupMessage, used map[uint]bool) int {
 		}
 
 		// 找后一条未used消息的时间
-		nextGap := msgs[len(msgs)].CreatedAt.Sub(msgs[0].CreatedAt)
+		nextGap := msgs[len(msgs)-1].CreatedAt.Sub(msgs[0].CreatedAt)
 		for j := i + 1; j < len(msgs); j++ {
 			if !used[msgs[j].ID] {
 				nextGap = msgs[j].CreatedAt.Sub(m.CreatedAt)
