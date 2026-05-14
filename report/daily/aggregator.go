@@ -69,9 +69,11 @@ func (a *Aggregator) Aggregate(groupID int64, date string) (*DailyReport, error)
 	})
 
 	report := &DailyReport{
-		GroupID:  groupID,
-		Date:     date,
-		TotalMsg: len(messages),
+		GroupID:   groupID,
+		Date:      date,
+		TotalMsg:  len(messages),
+		StartTime: start,
+		EndTime:   end,
 	}
 
 	// 2. 按用户分组（在内存里做，避免多次查库）
@@ -224,13 +226,13 @@ func (a *Aggregator) calcUserStats(userMap map[User][]GroupMessage, allGroupMsgs
 
 		// BeReplied：群里的 reply at 类型消息里，targetID == 当前用户的数量
 		for _, gm := range allGroupMsgs {
-			targetUser, has := ump[gm.TargetUserID]
-			if !has {
+			sendUser, ok := ump[gm.UserID] // 发言人
+			if !ok {
 				continue
 			}
 			if gm.TargetUserID == u.UserId {
-				stat.BeReplied[targetUser]++
-				stat.BeRepliedMessage[targetUser] = append(stat.BeRepliedMessage[targetUser], gm)
+				stat.BeReplied[sendUser]++
+				stat.BeRepliedMessage[sendUser] = append(stat.BeRepliedMessage[sendUser], gm)
 			}
 		}
 

@@ -90,6 +90,8 @@ type DailyReport struct {
 	Date        string
 	TotalMsg    int
 	ActiveUsers int
+	StartTime   time.Time  // 开始时间
+	EndTime     time.Time  // 结束时间
 	TimeStats   []TimeStat // 按消息数降序
 	UserStats   []UserStat // 按消息数降序
 	TopKeywords []KeywordStat

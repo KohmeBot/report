@@ -204,14 +204,7 @@ func (g *Generator) buildPrompt(r *DailyReport) string {
 	var sb strings.Builder
 
 	// 基本信息
-	// r.TimeStats 是按照发言量降序的，需要取得开始和结束时间
-	firstTime := slices.MinFunc(r.TimeStats, func(a, b TimeStat) int {
-		return a.Time.Compare(b.Time)
-	}).Time
-	lastTime := slices.MaxFunc(r.TimeStats, func(a, b TimeStat) int {
-		return a.Time.Compare(b.Time)
-	}).Time
-	sb.WriteString(fmt.Sprintf("=== %s 群聊日报数据(%s - %s) ===\n\n", r.Date, formatTime(firstTime), formatTime(lastTime)))
+	sb.WriteString(fmt.Sprintf("=== %s 群聊日报数据(%s - %s) ===\n\n", r.Date, formatTime(r.StartTime), formatTime(r.EndTime)))
 	sb.WriteString(fmt.Sprintf("【基本数据】\n今日发言人数：%d人\n今日总消息数：%d条\n\n",
 		r.ActiveUsers, r.TotalMsg))
 
@@ -226,7 +219,7 @@ func (g *Generator) buildPrompt(r *DailyReport) string {
 	}
 
 	// 找出最冷清时段（0条发言的时间）
-	silentTimes := findSilentTimes(r.TimeStats)
+	silentTimes := findSilentTimes(r.StartTime, r.EndTime, r.TimeStats)
 	if len(silentTimes) > 0 {
 		sb.WriteString(fmt.Sprintf("群沉默时段：%s（大家都不在）\n", formatTimes(silentTimes)))
 	}
@@ -625,13 +618,28 @@ func totalCount(m map[User]int) int {
 	return total
 }
 
-func findSilentTimes(timeStats []TimeStat) []time.Time {
-	var silent []time.Time
+func findSilentTimes(start, end time.Time, timeStats []TimeStat) []time.Time {
+	if end.Before(start) {
+		return nil
+	}
+
+	// 已有发言时间
+	active := make(map[time.Time]struct{}, len(timeStats))
 	for _, stat := range timeStats {
-		if stat.Count == 0 {
-			silent = append(silent, stat.Time)
+		if stat.Count > 0 {
+			active[stat.Time] = struct{}{}
 		}
 	}
+
+	var silent []time.Time
+
+	// 按小时检查
+	for t := start; !t.After(end); t = t.Add(time.Hour) {
+		if _, ok := active[t]; !ok {
+			silent = append(silent, t)
+		}
+	}
+
 	return silent
 }
 
