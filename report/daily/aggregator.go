@@ -291,7 +291,13 @@ func findRepeatMsg(contents []string) (msg string, count int) {
 func (a *Aggregator) calcTimeStats(messages []GroupMessage) []TimeStat {
 	timeCount := make(map[time.Time]int)
 	for _, msg := range messages {
-		timeCount[msg.CreatedAt]++
+		t := time.Date(
+			msg.CreatedAt.Year(),
+			msg.CreatedAt.Month(),
+			msg.CreatedAt.Day(),
+			msg.CreatedAt.Hour(),
+			0, 0, 0, time.Local)
+		timeCount[t]++
 	}
 
 	stats := make([]TimeStat, 0, len(timeCount))

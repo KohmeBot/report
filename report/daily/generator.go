@@ -212,7 +212,11 @@ func (g *Generator) buildPrompt(r *DailyReport) string {
 
 	// 活跃时段
 	sb.WriteString("【活跃时段Top5】\n")
-	for i, h := range r.TimeStats {
+	limit := len(r.TimeStats)
+	if limit > 5 {
+		limit = 5
+	}
+	for i, h := range r.TimeStats[:limit] {
 		sb.WriteString(fmt.Sprintf("  %d. %s —— %d条\n", i+1, formatTime(h.Time), h.Count))
 	}
 
@@ -225,7 +229,7 @@ func (g *Generator) buildPrompt(r *DailyReport) string {
 
 	// 群友排行（只取前8，太多token爆炸）
 	sb.WriteString("【群友今日表现】\n")
-	limit := len(r.UserStats)
+	limit = len(r.UserStats)
 	if limit > 8 {
 		limit = 8
 	}
@@ -455,15 +459,15 @@ func (g *Generator) buildInteractionTraits(stat UserStat) []string {
 		switch {
 		case totalOut >= totalIn*3:
 			traits = append(traits, fmt.Sprintf(
-				"主动找人%d次，被找%d次",
+				"主动互动%d次，被互动%d次",
 				totalOut, totalIn))
 		case totalIn >= totalOut*3:
 			traits = append(traits, fmt.Sprintf(
-				"被人找了%d次，自己只主动%d次",
+				"被互动%d次，只主动互动%d次",
 				totalIn, totalOut))
 		case totalOut >= 5 && totalIn >= 5:
 			traits = append(traits, fmt.Sprintf(
-				"主动找人%d次被人找了%d次", totalOut, totalIn))
+				"主动互动%d次，被互动%d次", totalOut, totalIn))
 		}
 	}
 
@@ -481,7 +485,7 @@ func (g *Generator) buildInteractionTraits(stat UserStat) []string {
 	// 被动单押：某人疯狂找你
 	if totalIn > 0 && topInCount*10 >= totalIn*7 && topInCount >= 3 {
 		traits = append(traits, fmt.Sprintf(
-			"%s找了你%d次，占你被互动总量%d%%",
+			"被%s互动%d次，占被互动总量%d%%",
 			topIn.Nickname, topInCount, topInCount*100/totalIn))
 	}
 
@@ -493,7 +497,7 @@ func (g *Generator) buildInteractionTraits(stat UserStat) []string {
 			outCount*10 >= totalOut*5 &&
 			inCount*10 >= totalIn*5 {
 			traits = append(traits, fmt.Sprintf(
-				"和%s今天互动了%d次，对方也找你%d次",
+				"和%s互动了%d次，同时也被对方互动%d次",
 				user.Nickname, outCount, inCount))
 			break
 		}
@@ -504,7 +508,7 @@ func (g *Generator) buildInteractionTraits(stat UserStat) []string {
 		inCountFromTop := stat.BeReplied[topOut]
 		if inCountFromTop == 0 {
 			traits = append(traits, fmt.Sprintf(
-				"主动找%s说了%d次话，对方今天一次都没找你，已读不回的感觉",
+				"主动与%s互动%d次，但对方没有回复，已读不回的感觉",
 				topOut.Nickname, topOutCount))
 		}
 	}
@@ -516,13 +520,13 @@ func (g *Generator) buildInteractionTraits(stat UserStat) []string {
 	switch {
 	case uniqueIn >= 5 && uniqueOut <= 1:
 		traits = append(traits, fmt.Sprintf(
-			"被%d个不同的人主动找，自己几乎不找人，天生人气体质", uniqueIn))
+			"被%d个不同的人互动，自己几乎不互动", uniqueIn))
 	case uniqueOut >= 5 && uniqueIn <= 1:
 		traits = append(traits, fmt.Sprintf(
-			"主动找了%d个不同的人，没几个人来找你，今日社恐克星", uniqueOut))
+			"主动互动了%d个不同的人，没有被别人互动，社恐克星", uniqueOut))
 	case uniqueIn >= 5 && uniqueOut >= 5:
 		traits = append(traits, fmt.Sprintf(
-			"和%d人互动，被%d人互动，今日社交中心节点", uniqueOut, uniqueIn))
+			"和%d人互动，被%d人互动，社交中心节点", uniqueOut, uniqueIn))
 	}
 
 	// ---- 6. 互动内容风格分析（只分析互动最多的那对） ----
@@ -545,7 +549,7 @@ func (g *Generator) buildInteractionTraits(stat UserStat) []string {
 	}
 	if ignoredCount >= 2 {
 		traits = append(traits, fmt.Sprintf(
-			"%d个人主动找你说话，你一个都没回，今日已读不回冠军", ignoredCount))
+			"被%d个人主动互动，但一个都没回，已读不回冠军", ignoredCount))
 	}
 
 	return traits
