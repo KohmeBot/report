@@ -16,7 +16,7 @@ func SampleMessages(msgs []GroupMessage) []string {
 	// 只取文本类消息参与筛选
 	textMsgs := make([]GroupMessage, 0, len(msgs))
 	for _, m := range msgs {
-		if (m.MsgType == "text" || m.MsgType == "mixed") && m.Content != "" {
+		if m.MsgType == MsgTypeText && m.Content != "" {
 			textMsgs = append(textMsgs, m)
 		}
 	}

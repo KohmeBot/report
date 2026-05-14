@@ -45,21 +45,29 @@ func (g *Generator) botNickName() string {
 	return "bot"
 }
 
-func (g *Generator) GenerateReport(group int64, t time.Time, theme *DailyTheme) (Report, error) {
+func (g *Generator) BuildPrompt(group int64, t time.Time) (string, *DailyReport, error) {
 	date := t.Format("2006-01-02")
 
 	// 生成日报
 	aggregator := NewAggregator(g.db)
 	report, err := aggregator.Aggregate(group, date)
 	if err != nil {
-		return Report{}, fmt.Errorf("聚合失败: %w", err)
+		return "", nil, fmt.Errorf("聚合失败: %w", err)
 	}
 	if report == nil {
 		logrus.Infof("%d 昨日暂无数据", group)
-		return Report{}, nil
+		return "", nil, nil
 	}
 
 	data := g.buildPrompt(report)
+	return data, report, nil
+}
+
+func (g *Generator) GenerateReport(group int64, t time.Time, theme *DailyTheme) (Report, error) {
+	date := t.Format("2006-01-02")
+
+	data, report, err := g.BuildPrompt(group, t)
+
 	req := fmt.Sprintf(reportPrompt,
 		theme.String(),
 		data,
@@ -196,28 +204,30 @@ func (g *Generator) buildPrompt(r *DailyReport) string {
 	var sb strings.Builder
 
 	// 基本信息
-	sb.WriteString(fmt.Sprintf("=== %s 群聊日报数据 ===\n\n", r.Date))
+	firstTime := r.TimeStats[0].Time
+	lastTime := r.TimeStats[len(r.TimeStats)-1].Time
+	sb.WriteString(fmt.Sprintf("=== %s 群聊日报数据(%s - %s) ===\n\n", r.Date, formatTime(firstTime), formatTime(lastTime)))
 	sb.WriteString(fmt.Sprintf("【基本数据】\n今日发言人数：%d人\n今日总消息数：%d条\n\n",
 		r.ActiveUsers, r.TotalMsg))
 
 	// 活跃时段
 	sb.WriteString("【活跃时段Top5】\n")
-	for i, h := range r.HourStats {
-		sb.WriteString(fmt.Sprintf("  %d. %02d点 —— %d条\n", i+1, h.Hour, h.Count))
+	for i, h := range r.TimeStats {
+		sb.WriteString(fmt.Sprintf("  %d. %s —— %d条\n", i+1, formatTime(h.Time), h.Count))
 	}
 
-	// 找出最冷清时段（0条发言的小时）
-	silentHours := findSilentHours(r.HourStats)
-	if len(silentHours) > 0 {
-		sb.WriteString(fmt.Sprintf("群沉默时段：%s（大家都不在）\n", formatHours(silentHours)))
+	// 找出最冷清时段（0条发言的时间）
+	silentTimes := findSilentTimes(r.TimeStats)
+	if len(silentTimes) > 0 {
+		sb.WriteString(fmt.Sprintf("群沉默时段：%s（大家都不在）\n", formatTimes(silentTimes)))
 	}
 	sb.WriteString("\n")
 
-	// 群友排行（只取前10，太多token爆炸）
+	// 群友排行（只取前8，太多token爆炸）
 	sb.WriteString("【群友今日表现】\n")
 	limit := len(r.UserStats)
-	if limit > 10 {
-		limit = 10
+	if limit > 8 {
+		limit = 8
 	}
 	for i, stat := range r.UserStats[:limit] {
 		sb.WriteString(g.buildUserBlock(i+1, stat))
@@ -268,48 +278,60 @@ func (g *Generator) buildUserBlock(rank int, stat UserStat) string {
 
 	// 图片/表情包
 	if stat.MsgCount > 0 {
-		imgRate := stat.ImageCount * 100 / stat.MsgCount
+		imageCount := stat.MsgTypeCount[MsgTypeImg]
+		imgRate := imageCount * 100 / stat.MsgCount
 		switch {
 		case imgRate >= 60:
-			traits = append(traits, fmt.Sprintf("发了%d张图占发言60%%+，靠图说话", stat.ImageCount))
-		case stat.ImageCount >= 5:
-			traits = append(traits, fmt.Sprintf("发了%d张图", stat.ImageCount))
+			traits = append(traits, fmt.Sprintf("发了%d张图占发言60%%+，靠图说话", imageCount))
+		case imageCount >= 5:
+			traits = append(traits, fmt.Sprintf("发了%d张图", imageCount))
 		}
 	}
 
 	// 戳一戳
+	pokeCount := stat.MsgTypeCount[MsgTypePoke]
 	switch {
-	case stat.PokeCount >= 10:
-		traits = append(traits, fmt.Sprintf("戳了别人%d次，戳戳狂魔", stat.PokeCount))
-	case stat.PokeCount >= 3:
-		traits = append(traits, fmt.Sprintf("戳了别人%d次", stat.PokeCount))
-	case stat.PokeCount == 1:
+	case pokeCount >= 10:
+		traits = append(traits, fmt.Sprintf("戳了别人%d次，戳戳狂魔", pokeCount))
+	case pokeCount >= 3:
+		traits = append(traits, fmt.Sprintf("戳了别人%d次", pokeCount))
+	case pokeCount == 1:
 		traits = append(traits, "戳了别人1次，不知道什么心态")
 	}
 
 	// at别人
+	atCount := stat.MsgTypeCount[MsgTypeAt]
 	switch {
-	case stat.AtCount >= 10:
-		traits = append(traits, fmt.Sprintf("@了别人%d次，群里的点名机器", stat.AtCount))
-	case stat.AtCount >= 3:
-		traits = append(traits, fmt.Sprintf("@了别人%d次", stat.AtCount))
+	case atCount >= 10:
+		traits = append(traits, fmt.Sprintf("@了别人%d次，群里的点名机器", atCount))
+	case atCount >= 3:
+		traits = append(traits, fmt.Sprintf("@了别人%d次", atCount))
 	}
 
-	// 回复行为
+	// 转发消息(搬屎)
+	forwardCount := stat.MsgTypeCount[MsgTypeForward]
 	switch {
-	case stat.ReplyCount >= 10:
-		traits = append(traits, fmt.Sprintf("引用回复了%d次，积极参与型或连环杠精", stat.ReplyCount))
-	case stat.ReplyCount >= 3:
-		traits = append(traits, fmt.Sprintf("引用回复了%d次", stat.ReplyCount))
+	case forwardCount >= 5:
+		traits = append(traits, fmt.Sprintf("转发了%d条，今日搬屎冠军", forwardCount))
+	case forwardCount >= 2:
+		traits = append(traits, fmt.Sprintf("搬了%d坨屎(转发消息)过来，群友们谢谢你", forwardCount))
+	case forwardCount == 1:
+		traits = append(traits, "搬了一坨屎(转发消息)过来，就这一坨，但很关键")
 	}
 
-	// 被回复
+	// 语音消息
+	recordCount := stat.MsgTypeCount[MsgTypeRecord]
 	switch {
-	case stat.BeReplied >= 5:
-		traits = append(traits, fmt.Sprintf("被别人引用回复或@%d次，发言有人接", stat.BeReplied))
-	case stat.BeReplied == 0 && stat.MsgCount >= 30:
-		traits = append(traits, "发了这么多条没人引用回复")
+	case recordCount >= 5:
+		traits = append(traits, fmt.Sprintf("发了%d条语音，打字是不会打字的", recordCount))
+	case recordCount >= 2:
+		traits = append(traits, fmt.Sprintf("发了%d条语音，懒得打字", recordCount))
+	case recordCount == 1:
+		traits = append(traits, "发了1条语音，不知道说了什么，反正没人听")
 	}
+
+	// 互动特征分析
+	traits = append(traits, g.buildInteractionTraits(stat)...)
 
 	// 孤独指数
 	if stat.MsgCount > 0 {
@@ -326,7 +348,7 @@ func (g *Generator) buildUserBlock(rank int, stat UserStat) string {
 	// 连发
 	switch {
 	case stat.BurstCount >= 5:
-		traits = append(traits, fmt.Sprintf("连发爆发%d次，间歇性话痨确诊", stat.BurstCount))
+		traits = append(traits, fmt.Sprintf("连发%d次，话痨", stat.BurstCount))
 	case stat.BurstCount >= 2:
 		traits = append(traits, fmt.Sprintf("有%d次60秒内连发3条以上", stat.BurstCount))
 	}
@@ -336,7 +358,7 @@ func (g *Generator) buildUserBlock(rank int, stat UserStat) string {
 		traits = append(traits, fmt.Sprintf("用了%d个感叹号，今天情绪高涨", stat.ExclamCount))
 	}
 	if stat.QuestionCount >= 8 {
-		traits = append(traits, fmt.Sprintf("问了%d个问号，今天十万个为什么", stat.QuestionCount))
+		traits = append(traits, fmt.Sprintf("问了%d个问号，疑似问题很多", stat.QuestionCount))
 	}
 	if stat.EllipsisCount >= 5 {
 		traits = append(traits, fmt.Sprintf("用了%d个省略号，意味深长还是说不完整", stat.EllipsisCount))
@@ -347,9 +369,9 @@ func (g *Generator) buildUserBlock(rank int, stat UserStat) string {
 		switch {
 		case stat.VocabSize < 20 && stat.MsgCount >= 15:
 			traits = append(traits, fmt.Sprintf(
-				"发了%d条但只用了%d种字，翻来覆去就那几个词", stat.MsgCount, stat.VocabSize))
+				"发了%d条但只用了%d种词，翻来覆去就那几个词", stat.MsgCount, stat.VocabSize))
 		case stat.VocabSize >= 80:
-			traits = append(traits, fmt.Sprintf("用词丰富，今天输出了%d种不同的字", stat.VocabSize))
+			traits = append(traits, fmt.Sprintf("用词丰富，今天输出了%d种不同的词", stat.VocabSize))
 		}
 	}
 
@@ -368,27 +390,36 @@ func (g *Generator) buildUserBlock(rank int, stat UserStat) string {
 			preview = string([]rune(preview)[:15]) + "..."
 		}
 		traits = append(traits, fmt.Sprintf(
-			"今天把「%s」说了%d次，人工复读机", preview, stat.RepeatCount))
+			"今天把「%s」说了%d次，复读机", preview, stat.RepeatCount))
 	}
 
 	// 时间特征
-	activeHours := stat.LastHour - stat.FirstHour
+	firstStr := formatTime(stat.FirstTime)
+	lastStr := formatTime(stat.LastTime)
+	activeSpan := stat.LastTime.Sub(stat.FirstTime)
+
 	switch {
-	case stat.NightOwl && stat.FirstHour >= 22:
+	case stat.NightOwl && stat.FirstTime.Hour() >= 22:
 		traits = append(traits, fmt.Sprintf(
-			"%02d点开始发言%02d点还没睡，全程夜班", stat.FirstHour, stat.LastHour))
+			"%s开始发言，%s还没睡，全程夜班", firstStr, lastStr))
+
 	case stat.NightOwl:
 		traits = append(traits, fmt.Sprintf(
-			"凌晨还在发言，%02d点才消失", stat.LastHour))
-	case stat.FirstHour <= 7 && stat.LastHour <= 12:
+			"凌晨还在发言，%s才消失", lastStr))
+
+	case stat.FirstTime.Hour() <= 7 && !stat.LastTime.After(stat.FirstTime.Add(12*time.Hour)):
 		traits = append(traits, fmt.Sprintf(
-			"%02d点就开始发言，早鸟型，%02d点沉默", stat.FirstHour, stat.LastHour))
-	case activeHours >= 14:
+			"%s就开始发言，早鸟型，%s沉默", firstStr, lastStr))
+
+	case activeSpan >= 14*time.Hour:
 		traits = append(traits, fmt.Sprintf(
-			"从%02d点聊到%02d点，全天候在线", stat.FirstHour, stat.LastHour))
-	case activeHours <= 1 && stat.MsgCount >= 10:
+			"从%s聊到%s，跨度%d小时，全天候在线",
+			firstStr, lastStr, int(activeSpan.Hours())))
+
+	case activeSpan <= time.Hour && stat.MsgCount >= 10:
 		traits = append(traits, fmt.Sprintf(
-			"1小时内集中发了%d条，打完就跑", stat.MsgCount))
+			"%d分钟内集中发了%d条，打完就跑",
+			int(activeSpan.Minutes()), stat.MsgCount))
 	}
 
 	// 写入特征
@@ -413,24 +444,192 @@ func (g *Generator) buildUserBlock(rank int, stat UserStat) string {
 	return sb.String()
 }
 
-func findSilentHours(activeHours []HourStat) []int {
-	active := make(map[int]bool)
-	for _, h := range activeHours {
-		active[h.Hour] = true
+func (g *Generator) buildInteractionTraits(stat UserStat) []string {
+	traits := []string{}
+
+	totalOut := totalCount(stat.InteractionCount) // 主动互动总次数
+	totalIn := totalCount(stat.BeReplied)         // 被互动总次数
+
+	// ---- 1. 社交能量：主动 vs 被动 ----
+	if totalOut+totalIn >= 5 {
+		switch {
+		case totalOut >= totalIn*3:
+			traits = append(traits, fmt.Sprintf(
+				"主动找人%d次，被找%d次",
+				totalOut, totalIn))
+		case totalIn >= totalOut*3:
+			traits = append(traits, fmt.Sprintf(
+				"被人找了%d次，自己只主动%d次",
+				totalIn, totalOut))
+		case totalOut >= 5 && totalIn >= 5:
+			traits = append(traits, fmt.Sprintf(
+				"主动找人%d次被人找了%d次", totalOut, totalIn))
+		}
 	}
-	silent := []int{}
-	for h := 0; h < 24; h++ {
-		if !active[h] {
-			silent = append(silent, h)
+
+	// ---- 2. 单押关系：有没有互动高度集中的对象 ----
+	topOut, topOutCount := topUser(stat.InteractionCount)
+	topIn, topInCount := topUser(stat.BeReplied)
+
+	// 主动单押
+	if totalOut > 0 && topOutCount*10 >= totalOut*7 && topOutCount >= 3 {
+		traits = append(traits, fmt.Sprintf(
+			"%d%%的互动都给了%s，不知道算痴情还是烦人",
+			topOutCount*100/totalOut, topOut.Nickname))
+	}
+
+	// 被动单押：某人疯狂找你
+	if totalIn > 0 && topInCount*10 >= totalIn*7 && topInCount >= 3 {
+		traits = append(traits, fmt.Sprintf(
+			"%s找了你%d次，占你被互动总量%d%%",
+			topIn.Nickname, topInCount, topInCount*100/totalIn))
+	}
+
+	// ---- 3. 两人互相疯狂找对方 ----
+	for user, outCount := range stat.InteractionCount {
+		inCount := stat.BeReplied[user]
+		// 双方互动都超过5次，且都占各自互动量的50%以上
+		if outCount >= 5 && inCount >= 5 &&
+			outCount*10 >= totalOut*5 &&
+			inCount*10 >= totalIn*5 {
+			traits = append(traits, fmt.Sprintf(
+				"和%s今天互动了%d次，对方也找你%d次",
+				user.Nickname, outCount, inCount))
+			break
+		}
+	}
+
+	// ---- 4. 单向暗恋：疯狂找某人，但对方没有回找 ----
+	if topOutCount >= 5 {
+		inCountFromTop := stat.BeReplied[topOut]
+		if inCountFromTop == 0 {
+			traits = append(traits, fmt.Sprintf(
+				"主动找%s说了%d次话，对方今天一次都没找你，已读不回的感觉",
+				topOut.Nickname, topOutCount))
+		}
+	}
+
+	// ---- 5. 人气王 vs 空气人 ----
+	uniqueIn := len(stat.BeReplied)
+	uniqueOut := len(stat.InteractionCount)
+
+	switch {
+	case uniqueIn >= 5 && uniqueOut <= 1:
+		traits = append(traits, fmt.Sprintf(
+			"被%d个不同的人主动找，自己几乎不找人，天生人气体质", uniqueIn))
+	case uniqueOut >= 5 && uniqueIn <= 1:
+		traits = append(traits, fmt.Sprintf(
+			"主动找了%d个不同的人，没几个人来找你，今日社恐克星", uniqueOut))
+	case uniqueIn >= 5 && uniqueOut >= 5:
+		traits = append(traits, fmt.Sprintf(
+			"和%d人互动，被%d人互动，今日社交中心节点", uniqueOut, uniqueIn))
+	}
+
+	// ---- 6. 互动内容风格分析（只分析互动最多的那对） ----
+	if topOutCount >= 3 {
+		msgs := stat.InteractionMessage[topOut]
+		style := analyzeInteractionStyle(msgs)
+		if style != "" {
+			traits = append(traits, fmt.Sprintf(
+				"和%s说话时%s", topOut.Nickname, style))
+		}
+	}
+
+	// ---- 7. 被互动但不回应 ----
+	ignoredCount := 0
+	for user, inMsgs := range stat.BeRepliedMessage {
+		outCount := stat.InteractionCount[user]
+		if len(inMsgs) >= 3 && outCount == 0 {
+			ignoredCount++
+		}
+	}
+	if ignoredCount >= 2 {
+		traits = append(traits, fmt.Sprintf(
+			"%d个人主动找你说话，你一个都没回，今日已读不回冠军", ignoredCount))
+	}
+
+	return traits
+}
+
+// analyzeInteractionStyle 分析和某人互动时的说话风格
+func analyzeInteractionStyle(msgs []GroupMessage) string {
+	if len(msgs) == 0 {
+		return ""
+	}
+
+	questionCount := 0
+	exclamCount := 0
+	shortCount := 0
+	totalLen := 0
+
+	for _, msg := range msgs {
+		if msg.MsgType != MsgTypeText {
+			continue
+		}
+		questionCount += strings.Count(msg.Content, "?") + strings.Count(msg.Content, "？")
+		exclamCount += strings.Count(msg.Content, "!") + strings.Count(msg.Content, "！")
+		if runeLen(msg.Content) <= 5 {
+			shortCount++
+		}
+		totalLen += runeLen(msg.Content)
+	}
+
+	avgLen := 0
+	if len(msgs) > 0 {
+		avgLen = totalLen / len(msgs)
+	}
+
+	// 按优先级匹配，只返回最突出的一个
+	switch {
+	case questionCount >= len(msgs)/2:
+		return "连环发问型，问题比答案多"
+	case exclamCount >= len(msgs)/2:
+		return "情绪输出型，感叹号停不下来"
+	case shortCount >= len(msgs)*7/10 && avgLen <= 4:
+		return "惜字如金型，三个字以内解决一切"
+	case avgLen >= 30:
+		return "长篇大论型，每次回复都像在写作文"
+	default:
+		return ""
+	}
+}
+
+// topUser 找map里value最大的key
+func topUser(m map[User]int) (User, int) {
+	var top User
+	maxCount := 0
+	for u, c := range m {
+		if c > maxCount {
+			maxCount = c
+			top = u
+		}
+	}
+	return top, maxCount
+}
+
+// totalCount 求map所有value的和
+func totalCount(m map[User]int) int {
+	total := 0
+	for _, c := range m {
+		total += c
+	}
+	return total
+}
+
+func findSilentTimes(timeStats []TimeStat) []time.Time {
+	var silent []time.Time
+	for _, stat := range timeStats {
+		if stat.Count == 0 {
+			silent = append(silent, stat.Time)
 		}
 	}
 	return silent
 }
 
-func formatHours(hours []int) string {
-	parts := make([]string, len(hours))
-	for i, h := range hours {
-		parts[i] = fmt.Sprintf("%02d点", h)
+func formatTimes(times []time.Time) string {
+	parts := make([]string, len(times))
+	for i, t := range times {
+		parts[i] = fmt.Sprintf("%s", formatTime(t))
 	}
 	if len(parts) > 5 {
 		parts = parts[:5]

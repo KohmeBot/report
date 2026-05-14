@@ -21,13 +21,13 @@ func (p *PluginReport) OnHandleMessage(engine plugin.Engine) {
 		var msgType string
 		for _, segment := range ctx.Event.Message {
 			msgType = segment.Type
-			if msgType != "text" {
+			if msgType != daily.MsgTypeText {
 				// 找到第一个非text的消息
 				break
 			}
 		}
 
-		if !slices.Contains([]string{"text", "image", "at", "poke", "reply"}, msgType) {
+		if !daily.HasMsgType(msgType) {
 			return
 		}
 
@@ -38,7 +38,6 @@ func (p *PluginReport) OnHandleMessage(engine plugin.Engine) {
 			Nickname:     ctx.CardOrNickName(ctx.Event.UserID),
 			Content:      ctx.Event.Message.ExtractPlainText(),
 			MsgType:      msgType,
-			Hour:         t.Hour(),
 			MsgID:        ctx.Event.MessageID.(int64),
 			CreatedAt:    t,
 		}
@@ -112,6 +111,30 @@ func (p *PluginReport) OnBuild(engine plugin.Engine) {
 	})
 }
 
+func (p *PluginReport) OnBuildPrompt(engine plugin.Engine) {
+	engine.OnCommand("buildprompt", p.env.SuperUser().Rule()).Handle(func(ctx *zero.Ctx) {
+		var cmd extension.CommandModel
+		err := ctx.Parse(&cmd)
+		if err != nil {
+			logrus.Error(err)
+		}
+
+		group, _ := strconv.ParseInt(cmd.Args, 10, 64)
+		if group == 0 {
+			group = ctx.Event.GroupID
+		}
+
+		prompt, err := p.GetPrompt(group, Yesterday())
+		if err != nil {
+			p.env.Error(ctx, err)
+			return
+		}
+
+		ctx.Send(prompt)
+
+	})
+}
+
 func (p *PluginReport) GetTheme(t time.Time) (theme *daily.DailyTheme) {
 	defer func() {
 		logrus.Infof("今日主题: %+v", theme)
@@ -155,6 +178,15 @@ func (p *PluginReport) GetReport(group int64, t time.Time, theme *daily.DailyThe
 	report, err := g.GenerateReport(group, t, theme)
 
 	return report, err
+}
+
+func (p *PluginReport) GetPrompt(group int64, t time.Time) (string, error) {
+
+	g := daily.NewGenerator(p.env, p.db, p.invoker, p.conf.ChromeAddr())
+
+	prompt, _, err := g.BuildPrompt(group, t)
+
+	return prompt, err
 }
 
 func (p *PluginReport) startSendTicker() {

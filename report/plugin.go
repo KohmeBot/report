@@ -51,6 +51,7 @@ func (p *PluginReport) OnInit(engine plugin.Engine, env plugin.Env) error {
 
 	p.OnHandleMessage(engine)
 	p.OnBuild(engine)
+	p.OnBuildPrompt(engine)
 
 	return nil
 }
@@ -67,5 +68,5 @@ func (p *PluginReport) Name() string {
 }
 
 func (p *PluginReport) Version() string {
-	return "v0.0.2-alpha.23"
+	return "v0.0.2-alpha.24"
 }

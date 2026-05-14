@@ -24,33 +24,37 @@ type GroupMessage struct {
 	Nickname     string
 	Content      string
 	MsgType      string    // text/image/poke/mixed
-	Hour         int       // 0-23，方便GROUP BY
 	MsgID        int64     // 消息ID,可以定位消息
 	CreatedAt    time.Time `gorm:"index:idx_group_date,priority:3"`
 }
 
+type User struct {
+	UserId   int64
+	Nickname string
+}
+
 // UserStat 聚合后的单个用户数据（内存结构，不落库）
 type UserStat struct {
-	UserID      int64
-	Nickname    string
-	MsgCount    int      // 消息数量
-	ImageCount  int      // 图片or表情包数量
-	PokeCount   int      // 戳一戳数量
-	AtCount     int      // at别人的数量
-	ShortCount  int      // 5字以内的短句数量（"哈哈" "对" "？"之类）
-	FirstHour   int      // 第一条发言的小时
-	LastHour    int      // 最后一条发言的小时
-	NightOwl    bool     // 是否有凌晨0-4点的发言
-	AllContents []string `json:"-"` // 今天所有文本发言（用于关键词和代表发言采样）
-	SampleMsgs  []string // 最终筛选出的代表发言（4条）
+	User
+	MsgCount     int            // 消息数量
+	MsgTypeCount map[string]int // 消息类型的数量
+
+	ShortCount  int       // 5字以内的短句数量（"哈哈" "对" "？"之类）
+	FirstTime   time.Time // 第一条发言的时间
+	LastTime    time.Time // 最后一条发言的时间
+	NightOwl    bool      // 是否有凌晨0-4点的发言
+	AllContents []string  `json:"-"` // 今天所有文本发言（用于关键词和代表发言采样）
+	SampleMsgs  []string  // 最终筛选出的代表发言（4条）
 
 	// 复读
 	RepeatMsg   string // 今天复读次数最多的那条原文
 	RepeatCount int    // 复读了几次
 
-	// 回复行为
-	ReplyCount int // 引用回复别人的次数（不是at，是reply）
-	BeReplied  int // 被别人引用回复的次数（说明发言有人接）
+	// 互动行为
+	BeReplied          map[User]int            // 被别人互动的次数 key: 对方的ID value: 次数
+	BeRepliedMessage   map[User][]GroupMessage `json:"-"` // 被别人互动消息 key: 对方ID value: 对应的互动消息
+	InteractionCount   map[User]int            // 互动别人的次数 key: 互动对象的ID value: 次数
+	InteractionMessage map[User][]GroupMessage `json:"-"` // 互动消息 key: 互动对象ID value: 对应的互动消息
 
 	// 情绪特征
 	ExclamCount   int // 感叹号数量（！or!），衡量激动程度
@@ -66,9 +70,17 @@ type UserStat struct {
 	AvgMsgLen int // 平均发言字数
 }
 
-// HourStat 小时活跃度
-type HourStat struct {
-	Hour  int
+func (s *UserStat) totalInteraction() int {
+	total := 0
+	for _, count := range s.InteractionCount {
+		total += count
+	}
+	return total
+}
+
+// TimeStat 时间活跃度
+type TimeStat struct {
+	Time  time.Time
 	Count int
 }
 
@@ -78,9 +90,8 @@ type DailyReport struct {
 	Date        string
 	TotalMsg    int
 	ActiveUsers int
-	HourStats   []HourStat // 按消息数降序
+	TimeStats   []TimeStat // 按消息数降序
 	UserStats   []UserStat // 按消息数降序
-	GhostUsers  []string   // 今日0发言（从群成员列表对比，可选）
 	TopKeywords []KeywordStat
 }
 
@@ -227,4 +238,8 @@ func (r ReportJSON) String(theme *DailyTheme) string {
 	}
 
 	return strings.TrimRight(sb.String(), "\n")
+}
+
+func formatTime(t time.Time) string {
+	return t.Format("01-02 15时")
 }
