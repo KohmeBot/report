@@ -204,8 +204,13 @@ func (g *Generator) buildPrompt(r *DailyReport) string {
 	var sb strings.Builder
 
 	// 基本信息
-	firstTime := r.TimeStats[0].Time
-	lastTime := r.TimeStats[len(r.TimeStats)-1].Time
+	// r.TimeStats 是按照发言量降序的，需要取得开始和结束时间
+	firstTime := slices.MinFunc(r.TimeStats, func(a, b TimeStat) int {
+		return a.Time.Compare(b.Time)
+	}).Time
+	lastTime := slices.MaxFunc(r.TimeStats, func(a, b TimeStat) int {
+		return a.Time.Compare(b.Time)
+	}).Time
 	sb.WriteString(fmt.Sprintf("=== %s 群聊日报数据(%s - %s) ===\n\n", r.Date, formatTime(firstTime), formatTime(lastTime)))
 	sb.WriteString(fmt.Sprintf("【基本数据】\n今日发言人数：%d人\n今日总消息数：%d条\n\n",
 		r.ActiveUsers, r.TotalMsg))
