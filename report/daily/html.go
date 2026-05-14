@@ -484,7 +484,7 @@ const reportHTML = `<!DOCTYPE html>
       </div>
       <div class="section-body">
         <div class="info-card">
-          <div class="info-label">{{.Report.Interaction.From}} → {{.Report.Interaction.To}}</div>
+          <div class="info-label">{{.Report.Interaction.Type}}</div>
           <div class="info-text">{{.Report.Interaction.Comment}}</div>
         </div>
       </div>

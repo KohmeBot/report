@@ -174,8 +174,7 @@ type ReportJSON struct {
 		Comment string `json:"comment"`
 	} `json:"moment"`
 	Interaction struct {
-		From    string `json:"from"`
-		To      string `json:"to"`
+		Type    string `json:"type"`
 		Comment string `json:"comment"`
 	} `json:"interaction"`
 	Trivia struct {
@@ -211,7 +210,7 @@ func (r ReportJSON) String(theme *DailyTheme) string {
 	// 社交图谱
 	if r.Interaction.Comment != "" {
 		sb.WriteString(theme.InteractionHeader + "\n")
-		sb.WriteString(fmt.Sprintf("%s → %s\n%s\n\n", r.Interaction.From, r.Interaction.To, r.Interaction.Comment))
+		sb.WriteString(fmt.Sprintf("%s\n%s\n\n", r.Interaction.Type, r.Interaction.Comment))
 	}
 
 	// 冷知识

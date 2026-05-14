@@ -221,7 +221,7 @@ func (g *Generator) buildPrompt(r *DailyReport) string {
 	// 找出最冷清时段（0条发言的时间）
 	silentTimes := findSilentTimes(r.StartTime, r.EndTime, r.TimeStats)
 	if len(silentTimes) > 0 {
-		sb.WriteString(fmt.Sprintf("群沉默时段：%s（大家都不在）\n", formatTimes(silentTimes)))
+		sb.WriteString(fmt.Sprintf("群沉默时段：%s\n", formatTimes(silentTimes)))
 	}
 	sb.WriteString("\n")
 
