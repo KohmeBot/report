@@ -267,11 +267,10 @@ func (g *Generator) buildUserBlock(rank int, stat UserStat) string {
 
 	// 时间跨度（一行，让AI自己判断有没有梗）
 	if !stat.FirstTime.IsZero() && !stat.LastTime.IsZero() {
-		activeSpan := stat.LastTime.Sub(stat.FirstTime)
-		sb.WriteString(fmt.Sprintf("｜%s-%s（跨度%d分钟）",
+
+		sb.WriteString(fmt.Sprintf("｜第一条发言于%s 最后发言于%s",
 			formatTime(stat.FirstTime),
-			formatTime(stat.LastTime),
-			int(activeSpan.Minutes())))
+			formatTime(stat.LastTime)))
 		if stat.NightOwl {
 			sb.WriteString("｜有凌晨发言")
 		}
@@ -287,7 +286,7 @@ func (g *Generator) buildUserBlock(rank int, stat UserStat) string {
 	}
 
 	if len(typeDesc) > 0 {
-		sb.WriteString(fmt.Sprintf("   类型：%s\n", strings.Join(typeDesc, "/")))
+		sb.WriteString(fmt.Sprintf("   发言类型和数量：%s\n", strings.Join(typeDesc, "/")))
 	}
 
 	// 文字特征（纯数字，不加评语）
@@ -365,17 +364,18 @@ func (g *Generator) buildUserBlock(rank int, stat UserStat) string {
 		sb.WriteString(fmt.Sprintf("   已读不回：%d人\n", ignoredCount))
 	}
 
-	// 代表发言（上限4条，截断超长的）
+	// 代表发言（上限4条，带时间）
 	if len(stat.SampleMsgs) > 0 {
-		quoted := make([]string, 0, len(stat.SampleMsgs))
-		for _, msg := range stat.SampleMsgs {
+		sb.WriteString("   代表发言：\n")
+		for _, m := range stat.SampleMsgs {
+			msg := m.Content
 			r := []rune(msg)
 			if len(r) > 40 {
 				msg = string(r[:40]) + "..."
 			}
-			quoted = append(quoted, "「"+msg+"」")
+			sb.WriteString(fmt.Sprintf("     [%s] 「%s」\n",
+				formatTime(m.CreatedAt), msg))
 		}
-		sb.WriteString("   代表发言：" + strings.Join(quoted, " / ") + "\n")
 	}
 
 	sb.WriteString("\n")
@@ -494,7 +494,6 @@ var themes = []*DailyTheme{
 		Theme:             "黑暗之魂",
 		Role:              "火祭司",
 		Style:             "死亡提示语风格，冷静克制，每句话都在暗示活着没有意义，大量使用「……已死」「获得了XX魂」「篝火已熄灭」",
-		Opening:           "💀 余灰们，昨日的篝火记录如下。",
 		UserFormat:        "用{nickname}的昨日行为判定其死亡原因和获得的魂数量",
 		GhostFormat:       "这些人已空洞化，失去了点击屏幕的欲望，灵魂在某处徘徊",
 		MvpHeader:         "💀 死亡档案",
@@ -520,7 +519,6 @@ var themes = []*DailyTheme{
 		Theme:             "碧蓝档案",
 		Role:              "基沃托斯联邦调查部老师",
 		Style:             "学校报告文风，用社团/部活/校规框架描述群友行为，老师视角带着无奈和宠溺，常用「老师表示」「已记入档案」「申请紧急镇压」",
-		Opening:           "📋 老师收到了昨日的问题学生行为报告。",
 		UserFormat:        "以{nickname}的社团活动报告形式点评，说明其昨日违规行为及处分建议",
 		GhostFormat:       "以下学生昨日无故旷课，已通知家长，正在联合对策委员会展开搜寻",
 		MvpHeader:         "📋 问题学生档案",
@@ -546,7 +544,6 @@ var themes = []*DailyTheme{
 		Theme:             "JOJO奇妙冒险",
 		Role:              "替身能力鉴定师",
 		Style:             "替身能力说明书风格，所有行为都被解读为替身能力，大量使用「能力名称」「射程」「破坏力」「精密动作性」「持续力」「成长性」六维评分，语气夸张中二",
-		Opening:           "🌟 昨日群聊替身使用报告，以下能力已被记录在册。",
 		UserFormat:        "为{nickname}的昨日行为命名一个替身，给出能力说明和六维评分",
 		GhostFormat:       "以下替身使用者已进入时间停止状态，推测遭遇了ザ・ワールド",
 		MvpHeader:         "🌟 替身能力鉴定书",

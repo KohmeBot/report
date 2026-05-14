@@ -28,7 +28,7 @@ func filterMessages(msgs []GroupMessage) []GroupMessage {
 
 // SampleMessages 从一个人的所有发言里筛出最有代表性的4条
 // msgs 必须按 CreatedAt 升序
-func SampleMessages(msgs []GroupMessage) []string {
+func SampleMessages(msgs []GroupMessage) []GroupMessage {
 	if len(msgs) == 0 {
 		return nil
 	}
@@ -40,20 +40,16 @@ func SampleMessages(msgs []GroupMessage) []string {
 		return nil
 	}
 	if len(textMsgs) <= 4 {
-		result := make([]string, 0, len(textMsgs))
-		for _, m := range textMsgs {
-			result = append(result, m.Content)
-		}
-		return result
+		return textMsgs
 	}
 
-	result := make([]string, 0, 4)
+	result := make([]GroupMessage, 0, 4)
 	used := make(map[uint]bool) // key 用消息ID，唯一且稳定
 
 	pickMsg := func(fn func([]GroupMessage, map[uint]bool) int) {
 		idx := fn(textMsgs, used)
 		if idx >= 0 {
-			result = append(result, textMsgs[idx].Content)
+			result = append(result, textMsgs[idx])
 			used[textMsgs[idx].ID] = true
 		}
 	}
@@ -88,7 +84,7 @@ func SampleMessages(msgs []GroupMessage) []string {
 			if len(result) >= 4 {
 				break
 			}
-			result = append(result, textMsgs[idx].Content)
+			result = append(result, textMsgs[idx])
 			used[textMsgs[idx].ID] = true
 		}
 	}

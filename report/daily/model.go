@@ -39,12 +39,12 @@ type UserStat struct {
 	MsgCount     int            // 消息数量
 	MsgTypeCount map[string]int // 消息类型的数量
 
-	ShortCount  int       // 5字以内的短句数量（"哈哈" "对" "？"之类）
-	FirstTime   time.Time // 第一条发言的时间
-	LastTime    time.Time // 最后一条发言的时间
-	NightOwl    bool      // 是否有凌晨0-4点的发言
-	AllContents []string  `json:"-"` // 今天所有文本发言（用于关键词和代表发言采样）
-	SampleMsgs  []string  // 最终筛选出的代表发言（4条）
+	ShortCount  int            // 5字以内的短句数量（"哈哈" "对" "？"之类）
+	FirstTime   time.Time      // 第一条发言的时间
+	LastTime    time.Time      // 最后一条发言的时间
+	NightOwl    bool           // 是否有凌晨0-4点的发言
+	AllContents []string       `json:"-"` // 今天所有文本发言（用于关键词和代表发言采样）
+	SampleMsgs  []GroupMessage // 最终筛选出的代表发言（4条）
 
 	// 复读
 	RepeatMsg   string // 今天复读次数最多的那条原文
@@ -106,7 +106,6 @@ type DailyTheme struct {
 	Theme             string `json:"theme"`
 	Role              string `json:"role"`
 	Style             string `json:"style"`
-	Opening           string `json:"opening"`
 	UserFormat        string `json:"user_format"`
 	GhostFormat       string `json:"ghost_format"`
 	MvpHeader         string `json:"mvp_header"`
@@ -163,8 +162,9 @@ type ThemeVisual struct {
 }
 
 type ReportJSON struct {
-	Title string `json:"title"`
-	MVP   []struct {
+	Title   string `json:"title"`
+	Opening string `json:"opening"`
+	MVP     []struct {
 		Nickname string `json:"nickname"`
 		Title    string `json:"title"`
 		Comment  string `json:"comment"`
@@ -191,7 +191,7 @@ type ReportJSON struct {
 func (r ReportJSON) String(theme *DailyTheme) string {
 	var sb strings.Builder
 
-	sb.WriteString(theme.Opening + "\n")
+	sb.WriteString(r.Opening + "\n")
 
 	// MVP
 	if len(r.MVP) > 0 {

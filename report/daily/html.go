@@ -567,7 +567,7 @@ func newReportTemplateData(t time.Time, theme *DailyTheme, report ReportJSON, Bo
 		Title:       report.Title,
 		Role:        theme.Role,
 		Theme:       theme,
-		Opening:     theme.Opening,
+		Opening:     report.Opening,
 		Report:      report,
 		Visual:      theme.Visual,
 		BotNickName: BotNickName,
