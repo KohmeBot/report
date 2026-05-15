@@ -3,7 +3,7 @@ package daily
 import (
 	"fmt"
 	"github.com/kohmebot/chatai/chatai/chataisdk"
-	"github.com/kohmebot/chatai/chatai/model"
+	"github.com/kohmebot/report/report/invoker"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 	"slices"
@@ -121,19 +121,12 @@ func (a *Aggregator) Aggregate(groupID int64, date string) (*DailyReport, map[in
 
 	if len(report.HotPeriod.Messages) > 0 {
 		// 用AI直接提取热点摘要
-		var largeModel model.LargeModel
-		largeModel, err = a.invoker.NewModel(summarySystemPrompt, true, false, false)
-		if err == nil {
-			report.HotPeriod.Summary, err = a.invoker.DoRequestWithModel(
-				fmt.Sprintf(hotPeriodPrompt,
-					formatTime(report.HotPeriod.Start),
-					formatTime(report.HotPeriod.End),
-					len(report.HotPeriod.Messages),
-					formatMessages(report.HotPeriod.Messages, ump),
-				),
-				largeModel,
-			)
-		}
+		report.HotPeriod.Summary, err = invoker.NewTextInvoker(a.invoker, summarySystemPrompt, true, false).DoRequest(fmt.Sprintf(hotPeriodPrompt,
+			formatTime(report.HotPeriod.Start),
+			formatTime(report.HotPeriod.End),
+			len(report.HotPeriod.Messages),
+			formatMessages(report.HotPeriod.Messages, ump),
+		))
 
 		if err != nil {
 			logrus.Errorf("生成摘要调用AI接口失败:%v", err)

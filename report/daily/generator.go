@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/kohmebot/chatai/chatai/chataisdk"
 	"github.com/kohmebot/plugin/v2"
+	"github.com/kohmebot/report/report/invoker"
 	"github.com/sirupsen/logrus"
 	zero "github.com/wdvxdr1123/ZeroBot"
 	"gorm.io/gorm"
@@ -72,26 +73,16 @@ func (g *Generator) GenerateReport(group int64, t time.Time, theme *DailyTheme) 
 		theme.String(),
 		data,
 	)
-
-	largeModel, err := g.invoker.NewModel(systemPrompt, true, false, true)
-	if err != nil {
-		return Report{}, err
-	}
-
-	res, err := g.invoker.DoRequestWithModel(req, largeModel)
+	var reportRes ReportJSON
+	err = invoker.NewJsonInvoker(g.invoker, systemPrompt, true, false).DoRequest(req, &reportRes)
 	if err != nil {
 		return Report{}, fmt.Errorf("AI调用失败: %w", err)
 	}
 
-	var reportRes ReportJSON
-	err = json.Unmarshal([]byte(res), &reportRes)
-	if err != nil {
-		return Report{}, fmt.Errorf("JSON解析失败: %w", err)
-	}
-
 	dataJSON, _ := json.Marshal(report)
+	reportJson, _ := json.Marshal(reportRes)
 	themeJSON, _ := json.Marshal(theme)
-	if err := g.saveReport(group, date, string(dataJSON), res, string(themeJSON)); err != nil {
+	if err = g.saveReport(group, date, string(dataJSON), string(reportJson), string(themeJSON)); err != nil {
 		logrus.Warnf("持久化失败: %v", err)
 	}
 
@@ -176,27 +167,10 @@ func (g *Generator) GenerateTheme(t time.Time, exclude ...*DailyTheme) (*DailyTh
 		excludeStr,
 	)
 
-	largeModel, err := g.invoker.NewModel(systemPrompt, true, false, true)
-	if err != nil {
-		return nil, err
-	}
-
-	res, err := g.invoker.DoRequestWithModel(req, largeModel)
-	if err != nil {
-		return nil, err
-	}
-
-	// 容错：AI可能在JSON外面加```json```
-	res = strings.TrimSpace(res)
-	res = strings.TrimPrefix(res, "```json")
-	res = strings.TrimPrefix(res, "```")
-	res = strings.TrimSuffix(res, "```")
-
 	var theme DailyTheme
-	if err := json.Unmarshal([]byte(strings.TrimSpace(res)), &theme); err != nil {
-		return nil, fmt.Errorf("主题解析失败: %w, raw: %s", err, res)
-	}
-	return &theme, nil
+	err := invoker.NewJsonInvoker(g.invoker, systemPrompt, true, false).DoRequest(req, &theme)
+
+	return &theme, err
 }
 
 // buildPrompt 把DailyReport拼成喂给AI的结构化文本
