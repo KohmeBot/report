@@ -22,7 +22,7 @@ func NewAggregator(db *gorm.DB, invoker *chataisdk.ChatAIInvoker) *Aggregator {
 }
 
 // Aggregate 对指定群、指定日期做全量聚合，返回DailyReport
-func (a *Aggregator) Aggregate(groupID int64, date string) (*DailyReport, error) {
+func (a *Aggregator) Aggregate(groupID int64, date string) (*DailyReport, map[int64]User, error) {
 	now := time.Now()
 	defer func() {
 		latency := time.Since(now)
@@ -35,7 +35,7 @@ func (a *Aggregator) Aggregate(groupID int64, date string) (*DailyReport, error)
 		time.Local,
 	)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// 群聊日从凌晨4点开始
@@ -61,10 +61,10 @@ func (a *Aggregator) Aggregate(groupID int64, date string) (*DailyReport, error)
 		Order("created_at ASC").
 		Find(&messages).Error
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if len(messages) == 0 {
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	// message 按createAt升序
@@ -112,7 +112,11 @@ func (a *Aggregator) Aggregate(groupID int64, date string) (*DailyReport, error)
 	}
 	report.TopKeywords = ExtractKeywords(allContents, 8)
 
-	// 7. 摘取热点信息
+	// 7. 截取首条和最后一条消息
+	report.FirstMessage = messages[0]
+	report.EndMessage = messages[len(messages)-1]
+
+	// 8. 摘取热点信息
 	report.HotPeriod = findHotSegment(messages)
 
 	if len(report.HotPeriod.Messages) > 0 {
@@ -137,7 +141,7 @@ func (a *Aggregator) Aggregate(groupID int64, date string) (*DailyReport, error)
 		time.Sleep(2 * time.Second)
 	}
 
-	return report, nil
+	return report, ump, nil
 }
 
 // groupByUser 按userID把消息分桶，返回 map[userID][]消息

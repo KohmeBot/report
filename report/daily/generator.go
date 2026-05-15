@@ -50,7 +50,7 @@ func (g *Generator) BuildPrompt(group int64, t time.Time) (string, *DailyReport,
 
 	// 生成日报
 	aggregator := NewAggregator(g.db, g.invoker)
-	report, err := aggregator.Aggregate(group, date)
+	report, ump, err := aggregator.Aggregate(group, date)
 	if err != nil {
 		return "", nil, fmt.Errorf("聚合失败: %w", err)
 	}
@@ -59,7 +59,7 @@ func (g *Generator) BuildPrompt(group int64, t time.Time) (string, *DailyReport,
 		return "", nil, nil
 	}
 
-	data := g.buildPrompt(report)
+	data := g.buildPrompt(report, ump)
 	return data, report, nil
 }
 
@@ -200,7 +200,7 @@ func (g *Generator) GenerateTheme(t time.Time, exclude ...*DailyTheme) (*DailyTh
 }
 
 // buildPrompt 把DailyReport拼成喂给AI的结构化文本
-func (g *Generator) buildPrompt(r *DailyReport) string {
+func (g *Generator) buildPrompt(r *DailyReport, ump map[int64]User) string {
 	var sb strings.Builder
 
 	// 基本信息
@@ -244,6 +244,11 @@ func (g *Generator) buildPrompt(r *DailyReport) string {
 			r.HotPeriod.Summary,
 		))
 	}
+
+	sb.WriteString(fmt.Sprintf("\n【第一条消息】：%s\n",
+		formatMessage(r.FirstMessage, ump)))
+	sb.WriteString(fmt.Sprintf("【最后一条消息】：%s\n",
+		formatMessage(r.EndMessage, ump)))
 
 	// 潜水（发言<=2条的人）
 	ghosts := []string{}
@@ -522,6 +527,8 @@ var themes = []*DailyTheme{
 		Style:             "死亡提示语风格，冷静克制，每句话都在暗示活着没有意义，大量使用「……已死」「获得了XX魂」「篝火已熄灭」",
 		UserFormat:        "用{nickname}的昨日行为判定其死亡原因和获得的魂数量",
 		GhostFormat:       "这些人已空洞化，失去了点击屏幕的欲望，灵魂在某处徘徊",
+		FirstHeader:       "🔥 篝火点燃者",
+		EndHeader:         "💀 最后的余灰",
 		MvpHeader:         "💀 死亡档案",
 		MomentHeader:      "⚡ 历史铭刻之时",
 		MomentFormat:      "用篝火燃烧烈度描述这段时间，说明当时发生了什么集体死亡事件",
@@ -547,6 +554,8 @@ var themes = []*DailyTheme{
 		Style:             "学校报告文风，用社团/部活/校规框架描述群友行为，老师视角带着无奈和宠溺，常用「老师表示」「已记入档案」「申请紧急镇压」",
 		UserFormat:        "以{nickname}的社团活动报告形式点评，说明其昨日违规行为及处分建议",
 		GhostFormat:       "以下学生昨日无故旷课，已通知家长，正在联合对策委员会展开搜寻",
+		FirstHeader:       "📋 今日第一个到校",
+		EndHeader:         "🌙 最后离开的学生",
 		MvpHeader:         "📋 问题学生档案",
 		MomentHeader:      "⚡ 事件发生经过",
 		MomentFormat:      "用学校紧急事件报告的格式描述这段时间，说明老师是否申请了镇压",
@@ -572,6 +581,8 @@ var themes = []*DailyTheme{
 		Style:             "替身能力说明书风格，所有行为都被解读为替身能力，大量使用「能力名称」「射程」「破坏力」「精密动作性」「持续力」「成长性」六维评分，语气夸张中二",
 		UserFormat:        "为{nickname}的昨日行为命名一个替身，给出能力说明和六维评分",
 		GhostFormat:       "以下替身使用者已进入时间停止状态，推测遭遇了ザ・ワールド",
+		FirstHeader:       "⭐ 能力首次觉醒",
+		EndHeader:         "🌟 最终能力登记",
 		MvpHeader:         "🌟 替身能力鉴定书",
 		MomentHeader:      "⚡ 能力爆发时刻",
 		MomentFormat:      "用替身能力集中爆发的角度描述这段时间，说明当时群聊空间发生了什么扭曲",

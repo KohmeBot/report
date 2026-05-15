@@ -109,16 +109,18 @@ type TimeStat struct {
 
 // DailyReport 聚合结果
 type DailyReport struct {
-	GroupID     int64
-	Date        string
-	TotalMsg    int
-	ActiveUsers int
-	HotPeriod   HotPeriod  // 热点话题
-	StartTime   time.Time  // 开始时间
-	EndTime     time.Time  // 结束时间
-	TimeStats   []TimeStat // 按消息数降序
-	UserStats   []UserStat // 按消息数降序
-	TopKeywords []KeywordStat
+	GroupID      int64
+	Date         string
+	TotalMsg     int
+	ActiveUsers  int
+	HotPeriod    HotPeriod  // 热点话题
+	StartTime    time.Time  // 开始时间
+	EndTime      time.Time  // 结束时间
+	TimeStats    []TimeStat // 按消息数降序
+	UserStats    []UserStat // 按消息数降序
+	TopKeywords  []KeywordStat
+	FirstMessage GroupMessage // 首条消息
+	EndMessage   GroupMessage // 最后一条消息
 }
 
 type KeywordStat struct {
@@ -132,6 +134,8 @@ type DailyTheme struct {
 	Style             string `json:"style"`
 	UserFormat        string `json:"user_format"`
 	GhostFormat       string `json:"ghost_format"`
+	FirstHeader       string `json:"first_header"`
+	EndHeader         string `json:"end_header"`
 	MvpHeader         string `json:"mvp_header"`
 	MomentHeader      string `json:"moment_header"`
 	MomentFormat      string `json:"moment_format"`
@@ -186,9 +190,19 @@ type ThemeVisual struct {
 }
 
 type ReportJSON struct {
-	Title   string `json:"title"`
-	Opening string `json:"opening"`
-	MVP     []struct {
+	Title      string `json:"title"`
+	Opening    string `json:"opening"`
+	FirstBlood struct {
+		Nickname string `json:"nickname"`
+		Time     string `json:"time"`
+		Comment  string `json:"comment"`
+	} `json:"first_blood"`
+	LastWords struct {
+		Nickname string `json:"nickname"`
+		Time     string `json:"time"`
+		Comment  string `json:"comment"`
+	} `json:"last_words"`
+	MVP []struct {
 		Nickname string `json:"nickname"`
 		Title    string `json:"title"`
 		Comment  string `json:"comment"`
@@ -274,53 +288,60 @@ func formatTime(t time.Time) string {
 func formatMessages(msgs []GroupMessage, ump map[int64]User) string {
 	var builder strings.Builder
 	for _, msg := range msgs {
-		u, ok := ump[msg.UserID]
-		if !ok {
+		str := formatMessage(msg, ump)
+		if str == "" {
 			continue
-		}
-		target, hasTarget := ump[msg.TargetUserID]
-		var content string
-		var action string
-		switch msg.MsgType {
-		case MsgTypeText:
-			action = "说"
-		case MsgTypeImg:
-			action = "发了一张图或表情包"
-		case MsgTypeAt:
-			if !hasTarget {
-				continue
-			}
-			action = fmt.Sprintf("@%s 说", target.Nickname)
-		case MsgTypePoke:
-			if !hasTarget {
-				continue
-			}
-			action = fmt.Sprintf("戳了戳%s", target.Nickname)
-		case MsgTypeReply:
-			if !hasTarget {
-				continue
-			}
-			action = fmt.Sprintf("回复%s", target.Nickname)
-		case MsgTypeForward:
-			action = "转了一条消息(搬屎)"
-		case MsgTypeRecord:
-			action = "发了条语音"
-		}
-		if action == "" {
-			continue
-		}
-		content = msg.Content
-		if runeLen(content) > 30 {
-			// 限制30字
-			content = string([]rune(content)[:30]) + "..."
-		}
-		// [5-15 11:11] 某某: XXX
-		builder.WriteString(fmt.Sprintf("[%s] %s [%s]", msg.CreatedAt.Format("01-02 15:04"), u.Nickname, action))
-		if content != "" {
-			builder.WriteString(fmt.Sprintf(": %s", content))
 		}
 		builder.WriteString("\n")
 	}
 	return builder.String()
 
+}
+
+func formatMessage(msg GroupMessage, ump map[int64]User) string {
+	var builder strings.Builder
+	u := ump[msg.UserID]
+
+	target, hasTarget := ump[msg.TargetUserID]
+	if !hasTarget {
+		target = User{
+			UserId:   0,
+			Nickname: "某人",
+		}
+	}
+	var content string
+	var action string
+	switch msg.MsgType {
+	case MsgTypeText:
+		action = "说"
+	case MsgTypeImg:
+		action = "发了一张图或表情包"
+	case MsgTypeAt:
+
+		action = fmt.Sprintf("@%s 说", target.Nickname)
+	case MsgTypePoke:
+
+		action = fmt.Sprintf("戳了戳%s", target.Nickname)
+	case MsgTypeReply:
+
+		action = fmt.Sprintf("回复%s", target.Nickname)
+	case MsgTypeForward:
+		action = "转了一条消息(搬屎)"
+	case MsgTypeRecord:
+		action = "发了条语音"
+	}
+	if action == "" {
+		return ""
+	}
+	content = msg.Content
+	if runeLen(content) > 30 {
+		// 限制30字
+		content = string([]rune(content)[:30]) + "..."
+	}
+	// [5-15 11:11] 某某: XXX
+	builder.WriteString(fmt.Sprintf("[%s] %s [%s]", msg.CreatedAt.Format("01-02 15:04"), u.Nickname, action))
+	if content != "" {
+		builder.WriteString(fmt.Sprintf(": %s", content))
+	}
+	return builder.String()
 }

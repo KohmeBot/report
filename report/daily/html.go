@@ -224,6 +224,62 @@ const reportHTML = `<!DOCTYPE html>
     background: {{.Visual.BgColor}};
   }
 
+  .timeline-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  
+  .timeline-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: {{.Visual.AccentColor}};
+    opacity: 0.85;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+  
+  .timeline-card {
+    background: {{.Visual.AccentColor}}08;
+    border-radius: 10px;
+    padding: 12px 14px;
+    border: 1px solid {{.Visual.AccentColor}}12;
+  }
+  
+  .timeline-meta {
+    font-size: 13px;
+    font-weight: 700;
+    color: {{.Visual.TextColor}};
+    opacity: 0.85;
+    margin-bottom: 6px;
+  }
+  
+  .timeline-comment {
+    font-size: 12.5px;
+    line-height: 1.8;
+    color: {{.Visual.TextColor}};
+    opacity: 0.6;
+  }
+  
+  .timeline-connector {
+    display: flex;
+    justify-content: center;
+    padding: 2px 0;
+  }
+  
+  .connector-line {
+    width: 1px;
+    height: 16px;
+    background: linear-gradient(
+      180deg,
+      {{.Visual.AccentColor}}44,
+      {{.Visual.AccentColor}}11
+    );
+  }
+
+
+
   /* ========== MVP ========== */
   .mvp-list {
     display: flex;
@@ -442,6 +498,37 @@ const reportHTML = `<!DOCTYPE html>
   <div class="top-divider"></div>
 
   <div class="sections-wrap">
+
+  <!-- 首发 & 末发 -->
+  <div class="section">
+    <div class="section-body" style="padding-top: 14px;">
+  
+      <div class="timeline-card">
+        <div class="timeline-header">
+          <div class="section-head-bar"></div>
+          <span class="timeline-label">{{.Theme.FirstHeader}}</span>
+        </div>
+        <div class="timeline-meta">{{.Report.FirstBlood.Nickname}}</div>
+		<div class="info-label">{{.Report.FirstBlood.Time}}</div>
+        <div class="timeline-comment">{{.Report.FirstBlood.Comment}}</div>
+      </div>
+  
+      <div class="timeline-connector">
+        <div class="connector-line"></div>
+      </div>
+  
+      <div class="timeline-card">
+        <div class="timeline-header">
+          <div class="section-head-bar"></div>
+          <span class="timeline-label">{{.Theme.EndHeader}}</span>
+        </div>
+        <div class="timeline-meta">{{.Report.LastWords.Nickname}}</div>
+        <div class="info-label">{{.Report.LastWords.Time}}</div>
+        <div class="timeline-comment">{{.Report.LastWords.Comment}}</div>
+      </div>
+  
+    </div>
+  </div>
 
     <div class="section">
       <div class="section-head">
