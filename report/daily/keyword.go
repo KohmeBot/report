@@ -87,7 +87,7 @@ func sortKeywords(stats []KeywordStat) {
 	}
 }
 
-const punctStr = "。，！？.,!?、：:；;「」【】()（）<>《》\n\t "
+const punctStr = "/。，！？.,!?、：:；;「」【】()（）<>《》\n\t "
 
 const stopDict = `
 一

@@ -49,7 +49,7 @@ func (g *Generator) BuildPrompt(group int64, t time.Time) (string, *DailyReport,
 	date := t.Format("2006-01-02")
 
 	// 生成日报
-	aggregator := NewAggregator(g.db)
+	aggregator := NewAggregator(g.db, g.invoker)
 	report, err := aggregator.Aggregate(group, date)
 	if err != nil {
 		return "", nil, fmt.Errorf("聚合失败: %w", err)
@@ -233,6 +233,16 @@ func (g *Generator) buildPrompt(r *DailyReport) string {
 	sb.WriteString(fmt.Sprintf("【发言数前%d群友数据】\n", limit))
 	for i, stat := range r.UserStats[:limit] {
 		sb.WriteString(g.buildUserBlock(i+1, stat))
+	}
+
+	// 热点摘要
+	if r.HotPeriod.Summary != "" {
+		sb.WriteString(fmt.Sprintf("\n【最热时段】%s-%s（%d条消息）\n摘要：%s\n",
+			formatTime(r.HotPeriod.Start),
+			formatTime(r.HotPeriod.End),
+			len(r.HotPeriod.Messages),
+			r.HotPeriod.Summary,
+		))
 	}
 
 	// 潜水（发言<=2条的人）

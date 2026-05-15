@@ -1,6 +1,9 @@
 package daily
 
 import (
+	"fmt"
+	"github.com/kohmebot/chatai/chatai/chataisdk"
+	"github.com/kohmebot/chatai/chatai/model"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 	"slices"
@@ -10,11 +13,12 @@ import (
 )
 
 type Aggregator struct {
-	db *gorm.DB
+	db      *gorm.DB
+	invoker *chataisdk.ChatAIInvoker
 }
 
-func NewAggregator(db *gorm.DB) *Aggregator {
-	return &Aggregator{db: db}
+func NewAggregator(db *gorm.DB, invoker *chataisdk.ChatAIInvoker) *Aggregator {
+	return &Aggregator{db: db, invoker: invoker}
 }
 
 // Aggregate 对指定群、指定日期做全量聚合，返回DailyReport
@@ -79,8 +83,14 @@ func (a *Aggregator) Aggregate(groupID int64, date string) (*DailyReport, error)
 	// 2. 按用户分组（在内存里做，避免多次查库）
 	userMap := a.groupByUser(messages)
 
+	// 把用户ID映射为用户
+	ump := make(map[int64]User)
+	for user := range userMap {
+		ump[user.UserId] = user
+	}
+
 	// 3. 计算每个用户的统计数据
-	stats := a.calcUserStats(userMap, messages)
+	stats := a.calcUserStats(userMap, ump, messages)
 
 	// 4. 按发言数降序
 	sort.Slice(stats, func(i, j int) bool {
@@ -101,6 +111,31 @@ func (a *Aggregator) Aggregate(groupID int64, date string) (*DailyReport, error)
 		}
 	}
 	report.TopKeywords = ExtractKeywords(allContents, 8)
+
+	// 7. 摘取热点信息
+	report.HotPeriod = findHotSegment(messages)
+
+	if len(report.HotPeriod.Messages) > 0 {
+		// 用AI直接提取热点摘要
+		var largeModel model.LargeModel
+		largeModel, err = a.invoker.NewModel(systemPrompt, true, false, false)
+		if err == nil {
+			report.HotPeriod.Summary, err = a.invoker.DoRequestWithModel(
+				fmt.Sprintf(hotPeriodPrompt,
+					formatTime(report.HotPeriod.Start),
+					formatTime(report.HotPeriod.End),
+					len(report.HotPeriod.Messages),
+					formatMessages(report.HotPeriod.Messages, ump),
+				),
+				largeModel,
+			)
+		}
+
+		if err != nil {
+			logrus.Errorf("生成摘要调用AI接口失败:%v", err)
+		}
+		time.Sleep(2 * time.Second)
+	}
 
 	return report, nil
 }
@@ -127,7 +162,7 @@ func (a *Aggregator) groupByUser(messages []GroupMessage) map[User][]GroupMessag
 }
 
 // calcUserStats 对每个用户的消息列表计算统计项
-func (a *Aggregator) calcUserStats(userMap map[User][]GroupMessage, allGroupMsgs []GroupMessage) []UserStat {
+func (a *Aggregator) calcUserStats(userMap map[User][]GroupMessage, ump map[int64]User, allGroupMsgs []GroupMessage) []UserStat {
 	// 预处理：建一个群消息时间索引，用于计算 LonelyCount 和 BeReplied
 	// key: 消息ID，value: 下一条其他人消息距离的秒数
 	type msgMeta struct {
@@ -137,12 +172,6 @@ func (a *Aggregator) calcUserStats(userMap map[User][]GroupMessage, allGroupMsgs
 	groupTimeline := make([]msgMeta, 0, len(allGroupMsgs))
 	for _, m := range allGroupMsgs {
 		groupTimeline = append(groupTimeline, msgMeta{m.UserID, m.CreatedAt})
-	}
-
-	// 把用户ID映射为用户
-	ump := make(map[int64]User)
-	for user := range userMap {
-		ump[user.UserId] = user
 	}
 
 	stats := make([]UserStat, 0, len(userMap))
@@ -262,6 +291,58 @@ func (a *Aggregator) calcUserStats(userMap map[User][]GroupMessage, allGroupMsgs
 	}
 
 	return stats
+}
+
+// pickHottest 找消息最多的段，如果最热段太短则尝试合并相邻段
+func pickHottest(segments []ChatSegment) *HotPeriod {
+	if len(segments) == 0 {
+		return nil
+	}
+
+	// 找消息最多的段的下标
+	bestIdx := 0
+	for i, seg := range segments {
+		if len(seg.Messages) > len(segments[bestIdx].Messages) {
+			bestIdx = i
+		}
+	}
+
+	best := segments[bestIdx]
+
+	// 如果相邻段时间很近（不超过20分钟），合并进来
+	// 向前合并
+	if bestIdx > 0 {
+		prev := segments[bestIdx-1]
+		gap := best.Start.Sub(prev.End)
+		if gap <= 20*time.Minute {
+			merged := append(prev.Messages, best.Messages...)
+			best = ChatSegment{
+				Start:    prev.Start,
+				End:      best.End,
+				Messages: merged,
+			}
+		}
+	}
+
+	// 向后合并
+	if bestIdx < len(segments)-1 {
+		next := segments[bestIdx+1]
+		gap := next.Start.Sub(best.End)
+		if gap <= 20*time.Minute {
+			merged := append(best.Messages, next.Messages...)
+			best = ChatSegment{
+				Start:    best.Start,
+				End:      next.End,
+				Messages: merged,
+			}
+		}
+	}
+
+	return &HotPeriod{
+		Start:    best.Start,
+		End:      best.End,
+		Messages: best.Messages,
+	}
 }
 
 func calcRhythm(msgs []GroupMessage) RhythmStat {

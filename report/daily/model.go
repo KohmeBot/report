@@ -87,6 +87,20 @@ type RhythmStat struct {
 	ActivePeriods  int           // 活跃时间段数量（间隔超过30分钟算切换一次）
 }
 
+// ChatSegment 自然话题段
+type ChatSegment struct {
+	Start    time.Time
+	End      time.Time
+	Messages []GroupMessage
+}
+
+type HotPeriod struct {
+	Start    time.Time
+	End      time.Time
+	Messages []GroupMessage `json:"-"`
+	Summary  string         // AI摘要结果
+}
+
 // TimeStat 时间活跃度
 type TimeStat struct {
 	Time  time.Time
@@ -99,6 +113,7 @@ type DailyReport struct {
 	Date        string
 	TotalMsg    int
 	ActiveUsers int
+	HotPeriod   HotPeriod  // 热点话题
 	StartTime   time.Time  // 开始时间
 	EndTime     time.Time  // 结束时间
 	TimeStats   []TimeStat // 按消息数降序
@@ -254,4 +269,53 @@ func (r ReportJSON) String(theme *DailyTheme) string {
 
 func formatTime(t time.Time) string {
 	return t.Format("01-02 15时")
+}
+
+func formatMessages(msgs []GroupMessage, ump map[int64]User) string {
+	var builder strings.Builder
+	for _, msg := range msgs {
+		u, ok := ump[msg.UserID]
+		if !ok {
+			continue
+		}
+		target, hasTarget := ump[msg.TargetUserID]
+		var content string
+		switch msg.MsgType {
+		case MsgTypeText:
+			content = msg.Content
+		case MsgTypeImg:
+			content = "发了一张图片或表情包"
+		case MsgTypeAt:
+			if !hasTarget {
+				continue
+			}
+			content = fmt.Sprintf("@%s,%s", target.Nickname, msg.Content)
+		case MsgTypePoke:
+			if !hasTarget {
+				continue
+			}
+			content = fmt.Sprintf("戳了戳%s", target.Nickname)
+		case MsgTypeReply:
+			if !hasTarget {
+				continue
+			}
+			content = fmt.Sprintf("回复了%s,%s", target.Nickname, msg.Content)
+		case MsgTypeForward:
+			content = "转发了一条消息(搬屎)"
+		case MsgTypeRecord:
+			content = "发了一条语音"
+		}
+		if content == "" {
+			continue
+		}
+		if runeLen(content) > 30 {
+			// 限制30字
+			content = string([]rune(content)[:30]) + "..."
+		}
+		// [5-15 11:11] 某某: XXX
+		builder.WriteString(fmt.Sprintf("[%s] %s:%s", msg.CreatedAt.Format("01-02 15:04"), u.Nickname, content))
+		builder.WriteString("\n")
+	}
+	return builder.String()
+
 }
