@@ -118,7 +118,7 @@ func (a *Aggregator) Aggregate(groupID int64, date string) (*DailyReport, error)
 	if len(report.HotPeriod.Messages) > 0 {
 		// 用AI直接提取热点摘要
 		var largeModel model.LargeModel
-		largeModel, err = a.invoker.NewModel(systemPrompt, true, false, false)
+		largeModel, err = a.invoker.NewModel(summarySystemPrompt, true, false, false)
 		if err == nil {
 			report.HotPeriod.Summary, err = a.invoker.DoRequestWithModel(
 				fmt.Sprintf(hotPeriodPrompt,

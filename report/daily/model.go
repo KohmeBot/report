@@ -280,40 +280,45 @@ func formatMessages(msgs []GroupMessage, ump map[int64]User) string {
 		}
 		target, hasTarget := ump[msg.TargetUserID]
 		var content string
+		var action string
 		switch msg.MsgType {
 		case MsgTypeText:
-			content = msg.Content
+			action = "说"
 		case MsgTypeImg:
-			content = "发了一张图片或表情包"
+			action = "发了一张图或表情包"
 		case MsgTypeAt:
 			if !hasTarget {
 				continue
 			}
-			content = fmt.Sprintf("@%s,%s", target.Nickname, msg.Content)
+			action = fmt.Sprintf("@%s 说", target.Nickname)
 		case MsgTypePoke:
 			if !hasTarget {
 				continue
 			}
-			content = fmt.Sprintf("戳了戳%s", target.Nickname)
+			action = fmt.Sprintf("戳了戳%s", target.Nickname)
 		case MsgTypeReply:
 			if !hasTarget {
 				continue
 			}
-			content = fmt.Sprintf("回复了%s,%s", target.Nickname, msg.Content)
+			action = fmt.Sprintf("回复%s", target.Nickname)
 		case MsgTypeForward:
-			content = "转发了一条消息(搬屎)"
+			action = "转了一条消息(搬屎)"
 		case MsgTypeRecord:
-			content = "发了一条语音"
+			action = "发了条语音"
 		}
-		if content == "" {
+		if action == "" {
 			continue
 		}
+		content = msg.Content
 		if runeLen(content) > 30 {
 			// 限制30字
 			content = string([]rune(content)[:30]) + "..."
 		}
 		// [5-15 11:11] 某某: XXX
-		builder.WriteString(fmt.Sprintf("[%s] %s:%s", msg.CreatedAt.Format("01-02 15:04"), u.Nickname, content))
+		builder.WriteString(fmt.Sprintf("[%s] %s [%s]", msg.CreatedAt.Format("01-02 15:04"), u.Nickname, action))
+		if content != "" {
+			builder.WriteString(fmt.Sprintf(": %s", content))
+		}
 		builder.WriteString("\n")
 	}
 	return builder.String()
