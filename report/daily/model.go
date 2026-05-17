@@ -31,7 +31,7 @@ type GroupMessage struct {
 type SpecifyTheme struct {
 	ID          uint `gorm:"primarykey"`
 	ThemeString string
-	Date        string `gorm:"uniqueIndex:idx_group_day,priority:1"`
+	Date        string `gorm:"uniqueIndex:idx_specify_theme_day,priority:1"`
 }
 
 type User struct {
