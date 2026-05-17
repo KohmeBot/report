@@ -154,3 +154,55 @@ func sampleMessages(msgs []GroupMessage, limit int) []GroupMessage {
 	result = append(result, tail...)
 	return result
 }
+
+// pickHottest 找消息最多的段，如果最热段太短则尝试合并相邻段
+func pickHottest(segments []ChatSegment) *HotPeriod {
+	if len(segments) == 0 {
+		return nil
+	}
+
+	// 找消息最多的段的下标
+	bestIdx := 0
+	for i, seg := range segments {
+		if len(seg.Messages) > len(segments[bestIdx].Messages) {
+			bestIdx = i
+		}
+	}
+
+	best := segments[bestIdx]
+
+	// 如果相邻段时间很近（不超过20分钟），合并进来
+	// 向前合并
+	if bestIdx > 0 {
+		prev := segments[bestIdx-1]
+		gap := best.Start.Sub(prev.End)
+		if gap <= 20*time.Minute {
+			merged := append(prev.Messages, best.Messages...)
+			best = ChatSegment{
+				Start:    prev.Start,
+				End:      best.End,
+				Messages: merged,
+			}
+		}
+	}
+
+	// 向后合并
+	if bestIdx < len(segments)-1 {
+		next := segments[bestIdx+1]
+		gap := next.Start.Sub(best.End)
+		if gap <= 20*time.Minute {
+			merged := append(best.Messages, next.Messages...)
+			best = ChatSegment{
+				Start:    best.Start,
+				End:      next.End,
+				Messages: merged,
+			}
+		}
+	}
+
+	return &HotPeriod{
+		Start:    best.Start,
+		End:      best.End,
+		Messages: best.Messages,
+	}
+}

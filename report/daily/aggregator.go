@@ -2,14 +2,15 @@ package daily
 
 import (
 	"fmt"
-	"github.com/kohmebot/chatai/chatai/chataisdk"
-	"github.com/kohmebot/report/report/invoker"
-	"github.com/sirupsen/logrus"
-	"gorm.io/gorm"
 	"slices"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/kohmebot/chatai/chatai/chataisdk"
+	"github.com/kohmebot/report/report/invoker"
+	"github.com/sirupsen/logrus"
+	"gorm.io/gorm"
 )
 
 type Aggregator struct {
@@ -133,6 +134,9 @@ func (a *Aggregator) Aggregate(groupID int64, date string) (*DailyReport, map[in
 		}
 		time.Sleep(2 * time.Second)
 	}
+
+	// 9. 摘取被复读最多次的消息
+	report.RepeatMessage = findGroupRepeatMsg(messages)
 
 	return report, ump, nil
 }
@@ -290,58 +294,6 @@ func (a *Aggregator) calcUserStats(userMap map[User][]GroupMessage, ump map[int6
 	return stats
 }
 
-// pickHottest 找消息最多的段，如果最热段太短则尝试合并相邻段
-func pickHottest(segments []ChatSegment) *HotPeriod {
-	if len(segments) == 0 {
-		return nil
-	}
-
-	// 找消息最多的段的下标
-	bestIdx := 0
-	for i, seg := range segments {
-		if len(seg.Messages) > len(segments[bestIdx].Messages) {
-			bestIdx = i
-		}
-	}
-
-	best := segments[bestIdx]
-
-	// 如果相邻段时间很近（不超过20分钟），合并进来
-	// 向前合并
-	if bestIdx > 0 {
-		prev := segments[bestIdx-1]
-		gap := best.Start.Sub(prev.End)
-		if gap <= 20*time.Minute {
-			merged := append(prev.Messages, best.Messages...)
-			best = ChatSegment{
-				Start:    prev.Start,
-				End:      best.End,
-				Messages: merged,
-			}
-		}
-	}
-
-	// 向后合并
-	if bestIdx < len(segments)-1 {
-		next := segments[bestIdx+1]
-		gap := next.Start.Sub(best.End)
-		if gap <= 20*time.Minute {
-			merged := append(best.Messages, next.Messages...)
-			best = ChatSegment{
-				Start:    best.Start,
-				End:      next.End,
-				Messages: merged,
-			}
-		}
-	}
-
-	return &HotPeriod{
-		Start:    best.Start,
-		End:      best.End,
-		Messages: best.Messages,
-	}
-}
-
 func calcRhythm(msgs []GroupMessage) RhythmStat {
 	if len(msgs) <= 1 {
 		return RhythmStat{}
@@ -413,6 +365,53 @@ func findRepeatMsg(contents []string) (msg string, count int) {
 		return "", 0
 	}
 	return
+}
+
+func findGroupRepeatMsg(msgs []GroupMessage) WordStat {
+	var stat WordStat
+	// extract text message
+	var textMsgs []GroupMessage
+	for _, msg := range msgs {
+		if msg.MsgType == MsgTypeText {
+			textMsgs = append(textMsgs, msg)
+		}
+	}
+
+	wordMap := make(map[string]int)
+
+	for _, msg := range textMsgs {
+		if msg.Content == "" {
+			continue
+		}
+		if msg.Content != stat.Word {
+			// 大于三次则记录
+			if stat.Count >= 3 {
+				wordMap[stat.Word] += stat.Count
+			}
+			stat = WordStat{
+				Word: msg.Content,
+			}
+		}
+		stat.Count++
+	}
+
+	// 循环结束后，处理最后一个未被比较到的 stat
+	if stat.Count >= 3 {
+		wordMap[stat.Word] += stat.Count
+	}
+
+	// 找出 wordMap 中次数最多的词
+	var result WordStat
+	for word, count := range wordMap {
+		if count > result.Count {
+			result = WordStat{
+				Word:  word,
+				Count: count,
+			}
+		}
+	}
+
+	return result
 }
 
 // calcTimeStats 统计时间消息量，返回时段

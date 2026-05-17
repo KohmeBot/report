@@ -1,10 +1,15 @@
 package report
 
 import (
+	"errors"
+	"fmt"
+	"strconv"
+	"strings"
+
 	"github.com/fumiama/cron"
 	"github.com/wdvxdr1123/ZeroBot/extension"
 	"github.com/wdvxdr1123/ZeroBot/message"
-	"strconv"
+	"gorm.io/gorm"
 
 	"github.com/kohmebot/plugin/v2"
 	"github.com/kohmebot/report/report/daily"
@@ -135,6 +140,42 @@ func (p *PluginReport) OnBuildPrompt(engine plugin.Engine) {
 	})
 }
 
+func (p *PluginReport) OnSpecifyTheme(engine plugin.Engine) {
+	engine.OnCommand("specifytheme", p.env.SuperUser().Rule()).Handle(func(ctx *zero.Ctx) {
+		var cmd extension.CommandModel
+		err := ctx.Parse(&cmd)
+		if err != nil {
+			logrus.Error(err)
+			return
+		}
+
+		cmd.Args = strings.TrimSpace(cmd.Args)
+		if cmd.Args == "" {
+			p.env.Error(ctx, fmt.Errorf("theme 为空"))
+			return
+		}
+
+		today := time.Now().Format("2006-01-02")
+
+		var specify daily.SpecifyTheme
+		err = p.db.Where("date = ?", today).First(&specify).Error
+		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+			p.env.Error(ctx, err)
+			return
+		}
+
+		specify.ThemeString = cmd.Args
+		specify.Date = today
+		err = p.db.Save(&specify).Error
+		if err != nil {
+			p.env.Error(ctx, err)
+			return
+		}
+
+		ctx.Send(fmt.Sprintf("设置主题成功：%s，明日将以该主题生成", cmd.Args))
+	})
+}
+
 func (p *PluginReport) GetTheme(t time.Time) (theme *daily.DailyTheme) {
 	defer func() {
 		logrus.Infof("今日主题: %+v", theme)
@@ -161,8 +202,12 @@ func (p *PluginReport) GetTheme(t time.Time) (theme *daily.DailyTheme) {
 	if err != nil {
 		logrus.Errorf("获取已使用的主题失败 %v", err)
 	}
+	specify, err := g.GetSpecifyTheme(t)
+	if err != nil {
+		logrus.Errorf("获取指定的主题失败 %v", err)
+	}
 
-	theme, err = g.GenerateTheme(t, used...)
+	theme, err = g.GenerateTheme(t, specify.ThemeString, used...)
 	if err != nil {
 		logrus.Errorf("生成主题失败 %v", err)
 		theme = daily.FallbackTheme()

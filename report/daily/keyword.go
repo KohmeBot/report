@@ -16,7 +16,7 @@ func init() {
 }
 
 // ExtractKeywords 从消息列表中提取topN高频词（2-4字）
-func ExtractKeywords(contents []string, topN int) []KeywordStat {
+func ExtractKeywords(contents []string, topN int) []WordStat {
 	freq := make(map[string]int)
 
 	for _, content := range contents {
@@ -52,10 +52,10 @@ func ExtractKeywords(contents []string, topN int) []KeywordStat {
 		}
 	}
 
-	stats := make([]KeywordStat, 0, len(freq))
+	stats := make([]WordStat, 0, len(freq))
 	for word, count := range freq {
 		if count >= 3 {
-			stats = append(stats, KeywordStat{Word: word, Count: count})
+			stats = append(stats, WordStat{Word: word, Count: count})
 		}
 	}
 
@@ -79,7 +79,7 @@ func containsPunctRune(r rune) bool {
 	return strings.ContainsRune(punctStr, r)
 }
 
-func sortKeywords(stats []KeywordStat) {
+func sortKeywords(stats []WordStat) {
 	for i := 1; i < len(stats); i++ {
 		for j := i; j > 0 && stats[j].Count > stats[j-1].Count; j-- {
 			stats[j], stats[j-1] = stats[j-1], stats[j]

@@ -4,17 +4,18 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
+	"math/rand"
+	"slices"
+	"strings"
+	"time"
+
 	"github.com/kohmebot/chatai/chatai/chataisdk"
 	"github.com/kohmebot/plugin/v2"
 	"github.com/kohmebot/report/report/invoker"
 	"github.com/sirupsen/logrus"
 	zero "github.com/wdvxdr1123/ZeroBot"
 	"gorm.io/gorm"
-	"maps"
-	"math/rand"
-	"slices"
-	"strings"
-	"time"
 )
 
 type Report struct {
@@ -152,7 +153,18 @@ func (g *Generator) GetUsedTheme(ts ...time.Time) ([]*DailyTheme, error) {
 	return res, nil
 }
 
-func (g *Generator) GenerateTheme(t time.Time, exclude ...*DailyTheme) (*DailyTheme, error) {
+func (g *Generator) GetSpecifyTheme(t time.Time) (SpecifyTheme, error) {
+	var specify SpecifyTheme
+	date := t.Format("2006-01-02")
+	err := g.db.Where("date=?", date).Find(&specify).Error
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return SpecifyTheme{}, err
+	}
+
+	return specify, nil
+}
+
+func (g *Generator) GenerateTheme(t time.Time, specifyString string, exclude ...*DailyTheme) (*DailyTheme, error) {
 	excludeTheme := make(map[string]*DailyTheme, len(exclude))
 	// 做个去重
 	for _, theme := range exclude {
@@ -161,11 +173,21 @@ func (g *Generator) GenerateTheme(t time.Time, exclude ...*DailyTheme) (*DailyTh
 	excludeStr := strings.Join(slices.Collect(maps.Keys(excludeTheme)), ",")
 
 	weekdays := []string{"日", "一", "二", "三", "四", "五", "六"}
-	req := fmt.Sprintf(themePrompt,
-		t.Format("2006-01-02"),
-		weekdays[t.Weekday()],
-		excludeStr,
-	)
+
+	var req string
+	if specifyString == "" {
+		req = fmt.Sprintf(themePrompt+"\n"+themePromptJson,
+			t.Format("2006-01-02"),
+			weekdays[t.Weekday()],
+			excludeStr,
+		)
+	} else {
+		req = fmt.Sprintf(themeSpecifyPrompt+"\n"+themePromptJson,
+			specifyString,
+			t.Format("2006-01-02"),
+			weekdays[t.Weekday()],
+		)
+	}
 
 	var theme DailyTheme
 	err := invoker.NewJsonInvoker(g.invoker, systemPrompt, true, false).DoRequest(req, &theme)
@@ -207,6 +229,14 @@ func (g *Generator) buildPrompt(r *DailyReport, ump map[int64]User) string {
 	sb.WriteString(fmt.Sprintf("【发言数前%d群友数据】\n", limit))
 	for i, stat := range r.UserStats[:limit] {
 		sb.WriteString(g.buildUserBlock(i+1, stat))
+	}
+
+	// 复读最多的数据
+	if r.RepeatMessage.Word != "" {
+		sb.WriteString(fmt.Sprintf("【被复读最多次的消息】\n%s 被连续复读 %d 次\n",
+			r.RepeatMessage.Word,
+			r.RepeatMessage.Count,
+		))
 	}
 
 	// 热点摘要

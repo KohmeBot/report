@@ -28,6 +28,12 @@ type GroupMessage struct {
 	CreatedAt    time.Time `gorm:"index:idx_group_date,priority:3"`
 }
 
+type SpecifyTheme struct {
+	ID          uint `gorm:"primarykey"`
+	ThemeString string
+	Date        string `gorm:"uniqueIndex:idx_group_day,priority:1"`
+}
+
 type User struct {
 	UserId   int64
 	Nickname string
@@ -109,21 +115,22 @@ type TimeStat struct {
 
 // DailyReport 聚合结果
 type DailyReport struct {
-	GroupID      int64
-	Date         string
-	TotalMsg     int
-	ActiveUsers  int
-	HotPeriod    HotPeriod  // 热点话题
-	StartTime    time.Time  // 开始时间
-	EndTime      time.Time  // 结束时间
-	TimeStats    []TimeStat // 按消息数降序
-	UserStats    []UserStat // 按消息数降序
-	TopKeywords  []KeywordStat
-	FirstMessage GroupMessage // 首条消息
-	EndMessage   GroupMessage // 最后一条消息
+	GroupID       int64
+	Date          string
+	TotalMsg      int
+	ActiveUsers   int
+	HotPeriod     HotPeriod  // 热点话题
+	StartTime     time.Time  // 开始时间
+	EndTime       time.Time  // 结束时间
+	TimeStats     []TimeStat // 按消息数降序
+	UserStats     []UserStat // 按消息数降序
+	TopKeywords   []WordStat
+	FirstMessage  GroupMessage // 首条消息
+	EndMessage    GroupMessage // 最后一条消息
+	RepeatMessage WordStat     // 被复读最多次的消息
 }
 
-type KeywordStat struct {
+type WordStat struct {
 	Word  string
 	Count int
 }
