@@ -26,6 +26,7 @@ type GroupMessage struct {
 	MsgType      string    // text/image/poke/mixed
 	MsgID        int64     // 消息ID,可以定位消息
 	CreatedAt    time.Time `gorm:"index:idx_group_date,priority:3"`
+	Url          string    // url
 }
 
 type SpecifyTheme struct {
@@ -127,12 +128,19 @@ type DailyReport struct {
 	TopKeywords   []WordStat
 	FirstMessage  GroupMessage // 首条消息
 	EndMessage    GroupMessage // 最后一条消息
-	RepeatMessage WordStat     // 被复读最多次的消息
+	RepeatMessage RepeatStat   // 被复读最多次的消息
 }
 
 type WordStat struct {
 	Word  string
 	Count int
+}
+
+type RepeatStat struct {
+	Content     string
+	Count       int
+	FirstSender User      // 发起人
+	StartTime   time.Time // 复读开始时间
 }
 
 type DailyTheme struct {
@@ -157,33 +165,24 @@ type DailyTheme struct {
 }
 
 func (d *DailyTheme) String() string {
-	return fmt.Sprintf(`
-# 日报主题
-日报主题：
-%s
-你的角色：
-%s
-整体写作风格：
-%s
-群友点评格式(这个只是参考,每个群友点评的句式必须要不一样):
-%s
-幽灵成员格式:
-%s
-互动描述格式:
-%s
-冷知识格式:
-%s
-禁止脱离以上世界观。
-所有文案必须模仿上述格式结构与语气。
-`,
-		d.Theme,
-		d.Role,
-		d.Style,
-		d.UserFormat,
-		d.GhostFormat,
-		d.InteractionFormat,
-		d.TriviaFormat,
-	)
+	var sb strings.Builder
+
+	sb.WriteString("=== 今日日报主题风格指南 ===\n\n")
+
+	sb.WriteString(fmt.Sprintf("【主题】%s\n", d.Theme))
+	sb.WriteString(fmt.Sprintf("【角色】你今天扮演：%s\n\n", d.Role))
+
+	sb.WriteString("【核心风格】\n")
+	sb.WriteString(d.Style + "\n\n")
+
+	sb.WriteString("【各板块写作方向】\n")
+	sb.WriteString(fmt.Sprintf("· 人物点评：%s\n", d.UserFormat))
+	sb.WriteString(fmt.Sprintf("· 热点时段：%s\n", d.MomentFormat))
+	sb.WriteString(fmt.Sprintf("· 互动描述：%s\n", d.InteractionFormat))
+	sb.WriteString(fmt.Sprintf("· 反直觉数据：%s\n", d.TriviaFormat))
+	sb.WriteString(fmt.Sprintf("· 失踪人口：%s\n", d.GhostFormat))
+
+	return sb.String()
 }
 
 type ThemeVisual struct {

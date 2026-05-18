@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/kohmebot/chatai/chatai/chataisdk"
@@ -177,6 +178,7 @@ func (g *Generator) GenerateTheme(t time.Time, specifyString string, exclude ...
 	var req string
 	if specifyString == "" {
 		req = fmt.Sprintf(themePrompt+"\n"+themePromptJson,
+			pickThemeCategory(),
 			t.Format("2006-01-02"),
 			weekdays[t.Weekday()],
 			excludeStr,
@@ -232,11 +234,15 @@ func (g *Generator) buildPrompt(r *DailyReport, ump map[int64]User) string {
 	}
 
 	// 复读最多的数据
-	if r.RepeatMessage.Word != "" {
-		sb.WriteString(fmt.Sprintf("【被复读最多次的消息】\n%s 被连续复读 %d 次\n",
-			r.RepeatMessage.Word,
-			r.RepeatMessage.Count,
+	if r.RepeatMessage.Content != "" {
+		sb.WriteString("【复读最多次的消息】\n")
+		sb.WriteString(fmt.Sprintf("  发起人：%s 于 %s\n",
+			r.RepeatMessage.FirstSender.Nickname,
+			formatTime(r.RepeatMessage.StartTime),
 		))
+		sb.WriteString(fmt.Sprintf("  内容：「%s」\n", r.RepeatMessage.Content))
+		sb.WriteString(fmt.Sprintf("  被复读：%d次\n", r.RepeatMessage.Count))
+		sb.WriteString("\n")
 	}
 
 	// 热点摘要
@@ -522,6 +528,37 @@ func formatTimes(times []time.Time) string {
 // FallbackTheme 主题生成失败时的兜底
 func FallbackTheme() *DailyTheme {
 	return themes[rand.Intn(len(themes))]
+}
+
+var (
+	themeChoice   = -1
+	themeChoiceMu sync.Mutex
+)
+
+func pickThemeCategory() string {
+	themeChoiceMu.Lock()
+	defer themeChoiceMu.Unlock()
+	if themeChoice == -1 {
+		themeChoice = rand.Intn(len(themeCategories))
+	}
+	res := themeCategories[themeChoice]
+	themeChoice++
+	if themeChoice >= len(themeCategories) {
+		themeChoice = 0
+	}
+	return res
+}
+
+var themeCategories = []string{
+	"动漫游戏IP：可参考但不限于 fate/jojo/mygo/赛马娘/黑暗之魂/怪物猎人/生化危机/明日方舟等",
+	"严肃新闻播报：可参考但不限于 新闻联播/CCTV纪录片等",
+	"中文互联网文体：可参考但不限于 知乎/小红书/贴吧等",
+	"现实场景错位：可参考但不限于 学术论文摘要/公务员申论作答体等",
+	"主播直播话术：可参考但不限于 电棍/孙笑川/NGA老哥/贴吧串子/V圈等",
+	"传说怪谈：可参考但不限于 SCP基金会/后室等",
+	"游戏系统提示：Steam成就解锁/鹅鸭杀投票报告等",
+	"恋爱情感文学：可参考但不限于 二游游戏短信/网易云热评/深夜电台等",
+	"二次元亚文化风格：可参考但不限于 galgame/轻小说/少年漫/热血漫/青春校园等",
 }
 
 var themes = []*DailyTheme{

@@ -136,7 +136,7 @@ func (a *Aggregator) Aggregate(groupID int64, date string) (*DailyReport, map[in
 	}
 
 	// 9. 摘取被复读最多次的消息
-	report.RepeatMessage = findGroupRepeatMsg(messages)
+	report.RepeatMessage = findGroupRepeatMsg(messages, ump)
 
 	return report, ump, nil
 }
@@ -367,51 +367,81 @@ func findRepeatMsg(contents []string) (msg string, count int) {
 	return
 }
 
-func findGroupRepeatMsg(msgs []GroupMessage) WordStat {
-	var stat WordStat
-	// extract text message
+func findGroupRepeatMsg(msgs []GroupMessage, ump map[int64]User) RepeatStat {
 	var textMsgs []GroupMessage
 	for _, msg := range msgs {
-		if msg.MsgType == MsgTypeText {
+		if msg.MsgType == MsgTypeText && msg.Content != "" {
 			textMsgs = append(textMsgs, msg)
 		}
 	}
-
-	wordMap := make(map[string]int)
-
-	for _, msg := range textMsgs {
-		if msg.Content == "" {
-			continue
-		}
-		if msg.Content != stat.Word {
-			// 大于三次则记录
-			if stat.Count >= 3 {
-				wordMap[stat.Word] += stat.Count
-			}
-			stat = WordStat{
-				Word: msg.Content,
-			}
-		}
-		stat.Count++
+	if len(textMsgs) == 0 {
+		return RepeatStat{}
 	}
 
-	// 循环结束后，处理最后一个未被比较到的 stat
-	if stat.Count >= 3 {
-		wordMap[stat.Word] += stat.Count
-	}
+	// key: content, value: 合并后的统计
+	merged := make(map[string]*RepeatStat)
 
-	// 找出 wordMap 中次数最多的词
-	var result WordStat
-	for word, count := range wordMap {
-		if count > result.Count {
-			result = WordStat{
-				Word:  word,
-				Count: count,
+	cur := &RepeatStat{
+		FirstSender: ump[textMsgs[0].UserID],
+		StartTime:   textMsgs[0].CreatedAt,
+	}
+	curContent := textMsgs[0].Content
+	cur.Count = 1
+
+	flush := func() {
+		if cur.Count < 3 {
+			return
+		}
+		if existing, ok := merged[curContent]; ok {
+			// 合并：累加次数，保留最早的发起人和时间
+			existing.Count += cur.Count
+			if cur.StartTime.Before(existing.StartTime) {
+				existing.FirstSender = cur.FirstSender
+				existing.StartTime = cur.StartTime
+			}
+		} else {
+			merged[curContent] = &RepeatStat{
+				Count:       cur.Count,
+				FirstSender: cur.FirstSender,
+				StartTime:   cur.StartTime,
 			}
 		}
 	}
 
-	return result
+	for i := 1; i < len(textMsgs); i++ {
+		msg := textMsgs[i]
+		if msg.Content == curContent {
+			cur.Count++
+		} else {
+			flush()
+			curContent = msg.Content
+			cur = &RepeatStat{
+				Count:       1,
+				FirstSender: ump[msg.UserID],
+				StartTime:   msg.CreatedAt,
+			}
+		}
+	}
+	flush()
+
+	if len(merged) == 0 {
+		return RepeatStat{}
+	}
+
+	// 找总次数最多的
+	var best RepeatStat
+	for content, seg := range merged {
+		if seg.Count > best.Count {
+			best = RepeatStat{
+				Content:     content,
+				Count:       seg.Count,
+				FirstSender: seg.FirstSender,
+				StartTime:   seg.StartTime,
+			}
+		}
+	}
+
+	return best
 }
 
 // calcTimeStats 统计时间消息量，返回时段

@@ -40,6 +40,7 @@ func (p *PluginReport) OnHandleMessage(engine plugin.Engine) {
 			GroupID:      ctx.Event.GroupID,
 			UserID:       ctx.Event.UserID,
 			TargetUserID: getTargetID(ctx),
+			Url:          getUrl(ctx.Event.Message),
 			Nickname:     ctx.CardOrNickName(ctx.Event.UserID),
 			Content:      ctx.Event.Message.ExtractPlainText(),
 			MsgType:      msgType,
@@ -49,6 +50,15 @@ func (p *PluginReport) OnHandleMessage(engine plugin.Engine) {
 
 		p.r.Write(msg)
 	})
+}
+
+func getUrl(msgs message.Message) string {
+	for _, m := range msgs {
+		if m.Type == daily.MsgTypeImg {
+			return m.Data["url"]
+		}
+	}
+	return ""
 }
 
 func getTargetID(ctx *zero.Ctx) int64 {
