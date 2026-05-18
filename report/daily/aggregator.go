@@ -185,6 +185,8 @@ func (a *Aggregator) calcUserStats(userMap map[User][]GroupMessage, ump map[int6
 			InteractionMessage: map[User][]GroupMessage{},
 			BeReplied:          map[User]int{},
 			BeRepliedMessage:   map[User][]GroupMessage{},
+			FirstMessage:       msgs[0],
+			EndMessage:         msgs[len(msgs)-1],
 		}
 
 		textContents := make([]string, 0)
@@ -280,10 +282,6 @@ func (a *Aggregator) calcUserStats(userMap map[User][]GroupMessage, ump map[int6
 
 		// ---------- 复读检测 ----------
 		stat.RepeatMsg, stat.RepeatCount = findRepeatMsg(textContents)
-
-		// ---------- 首末发言时段 ----------
-		stat.FirstTime = msgs[0].CreatedAt
-		stat.LastTime = msgs[len(msgs)-1].CreatedAt
 
 		stat.AllContents = textContents
 		stat.SampleMsgs = SampleMessages(msgs)

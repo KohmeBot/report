@@ -47,8 +47,6 @@ type UserStat struct {
 	MsgTypeCount map[string]int // 消息类型的数量
 
 	ShortCount  int            // 5字以内的短句数量（"哈哈" "对" "？"之类）
-	FirstTime   time.Time      // 第一条发言的时间
-	LastTime    time.Time      // 最后一条发言的时间
 	NightOwl    bool           // 是否有凌晨0-4点的发言
 	AllContents []string       `json:"-"` // 今天所有文本发言（用于关键词和代表发言采样）
 	SampleMsgs  []GroupMessage // 最终筛选出的代表发言（4条）
@@ -75,6 +73,9 @@ type UserStat struct {
 	// 词汇特征
 	VocabSize int // 今天用了多少种不同的词（去重后），衡量表达丰富度
 	AvgMsgLen int // 平均发言字数
+
+	FirstMessage GroupMessage // 第一条消息
+	EndMessage   GroupMessage // 最后一条消息
 }
 
 func (s *UserStat) totalInteraction() int {

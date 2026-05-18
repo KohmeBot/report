@@ -230,7 +230,7 @@ func (g *Generator) buildPrompt(r *DailyReport, ump map[int64]User) string {
 	}
 	sb.WriteString(fmt.Sprintf("【发言数前%d群友数据】\n", limit))
 	for i, stat := range r.UserStats[:limit] {
-		sb.WriteString(g.buildUserBlock(i+1, stat))
+		sb.WriteString(g.buildUserBlock(i+1, stat, ump))
 	}
 
 	// 复读最多的数据
@@ -284,23 +284,27 @@ func (g *Generator) buildPrompt(r *DailyReport, ump map[int64]User) string {
 	return sb.String()
 }
 
-func (g *Generator) buildUserBlock(rank int, stat UserStat) string {
+func (g *Generator) buildUserBlock(rank int, stat UserStat, ump map[int64]User) string {
 	var sb strings.Builder
 
 	// 基础行
 	sb.WriteString(fmt.Sprintf("%d. %s｜发言%d条", rank, stat.Nickname, stat.MsgCount))
 
 	// 时间跨度（一行，让AI自己判断有没有梗）
-	if !stat.FirstTime.IsZero() && !stat.LastTime.IsZero() {
+	if !stat.FirstMessage.CreatedAt.IsZero() && !stat.EndMessage.CreatedAt.IsZero() {
 
 		sb.WriteString(fmt.Sprintf("｜第一条发言于%s 最后发言于%s",
-			formatTime(stat.FirstTime),
-			formatTime(stat.LastTime)))
+			formatTime(stat.FirstMessage.CreatedAt),
+			formatTime(stat.EndMessage.CreatedAt)))
 		if stat.NightOwl {
 			sb.WriteString("｜有凌晨发言")
 		}
 	}
 	sb.WriteString("\n")
+
+	// 首末发言内容
+	sb.WriteString(fmt.Sprintf("   第一条消息：%s\n", formatMessage(stat.FirstMessage, ump)))
+	sb.WriteString(fmt.Sprintf("   最后一条消息：%s\n", formatMessage(stat.EndMessage, ump)))
 
 	// 消息类型分布（只列出>0的）
 	typeDesc := []string{}
@@ -311,7 +315,7 @@ func (g *Generator) buildUserBlock(rank int, stat UserStat) string {
 	}
 
 	if len(typeDesc) > 0 {
-		sb.WriteString(fmt.Sprintf("   发言类型和数量：%s\n", strings.Join(typeDesc, "/")))
+		sb.WriteString(fmt.Sprintf("   发言类型和数量：%s\n", strings.Join(typeDesc, ",")))
 	}
 
 	// 文字特征（纯数字，不加评语）
