@@ -66,7 +66,7 @@ func (g *Generator) BuildPrompt(group int64, t time.Time) (string, *DailyReport,
 	return data, report, nil
 }
 
-func (g *Generator) GenerateReport(group int64, t time.Time, theme *DailyTheme) (Report, error) {
+func (g *Generator) GenerateReport(group int64, groupName string, t time.Time, theme *DailyTheme) (Report, error) {
 	date := t.Format("2006-01-02")
 
 	data, report, err := g.BuildPrompt(group, t)
@@ -88,7 +88,7 @@ func (g *Generator) GenerateReport(group int64, t time.Time, theme *DailyTheme) 
 		logrus.Warnf("持久化失败: %v", err)
 	}
 
-	r := newReportTemplateData(t, theme, reportRes, g.botNickName())
+	r := newReportTemplateData(t, theme, reportRes, groupName, g.botNickName())
 
 	imgBytes, err := r.renderReportImage(g.chromeAddr, group)
 	if err != nil {

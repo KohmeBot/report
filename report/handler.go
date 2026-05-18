@@ -104,11 +104,13 @@ func (p *PluginReport) OnBuild(engine plugin.Engine) {
 			group = ctx.Event.GroupID
 		}
 
+		groupName := ctx.GetGroupInfo(group, false).Name
+
 		theme := p.GetTheme(Yesterday())
 
 		time.Sleep(2 * time.Second)
 
-		report, err := p.GetReport(group, Yesterday(), theme)
+		report, err := p.GetReport(group, groupName, Yesterday(), theme)
 		if err != nil {
 			p.env.Error(ctx, err)
 			return
@@ -226,11 +228,11 @@ func (p *PluginReport) GetTheme(t time.Time) (theme *daily.DailyTheme) {
 	return theme
 }
 
-func (p *PluginReport) GetReport(group int64, t time.Time, theme *daily.DailyTheme) (daily.Report, error) {
+func (p *PluginReport) GetReport(group int64, groupName string, t time.Time, theme *daily.DailyTheme) (daily.Report, error) {
 
 	g := daily.NewGenerator(p.env, p.db, p.invoker, p.conf.ChromeAddr())
 
-	report, err := g.GenerateReport(group, t, theme)
+	report, err := g.GenerateReport(group, groupName, t, theme)
 
 	return report, err
 }
@@ -257,7 +259,8 @@ func (p *PluginReport) startSendTicker() {
 		time.Sleep(2 * time.Second)
 		p.env.UseBot(func(ctx *zero.Ctx) {
 			for group := range iter {
-				report, err := p.GetReport(group, yesterday, theme)
+				groupName := ctx.GetGroupInfo(group, false).Name
+				report, err := p.GetReport(group, groupName, yesterday, theme)
 				if err != nil {
 					p.env.Error(ctx, err)
 					return

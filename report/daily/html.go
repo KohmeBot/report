@@ -484,7 +484,7 @@ const reportHTML = `<!DOCTYPE html>
     <div class="title">{{.Title}}</div>
     <div class="role-line">
       <div class="role-bar"></div>
-      <span class="role-text">{{.Role}}</span>
+      <span class="role-text">{{.GroupName}}</span>
     </div>
   </div>
 
@@ -646,7 +646,7 @@ type reportTemplateData struct {
 	Date        string
 	DateNo      string
 	Title       string
-	Role        string
+	GroupName   string
 	Opening     string
 	BotNickName string
 	Theme       *DailyTheme
@@ -654,17 +654,17 @@ type reportTemplateData struct {
 	Visual      ThemeVisual
 }
 
-func newReportTemplateData(t time.Time, theme *DailyTheme, report ReportJSON, BotNickName string) reportTemplateData {
+func newReportTemplateData(t time.Time, theme *DailyTheme, report ReportJSON, groupName string, botNickName string) reportTemplateData {
 	return reportTemplateData{
 		Date:        t.Format("2006-01-02"),
 		DateNo:      t.Format("0102"),
 		Title:       report.Title,
-		Role:        theme.Role,
+		GroupName:   groupName,
 		Theme:       theme,
 		Opening:     report.Opening,
 		Report:      report,
 		Visual:      theme.Visual,
-		BotNickName: BotNickName,
+		BotNickName: botNickName,
 	}
 }
 
