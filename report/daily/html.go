@@ -564,6 +564,7 @@ const reportHTML = `<!DOCTYPE html>
         <div class="info-card">
           <div class="info-label">{{.Report.Moment.Time}}</div>
           <div class="info-text">{{.Report.Moment.Comment}}</div>
+          <div class="info-question">{{.Report.Moment.Roast}}</div>
         </div>
       </div>
     </div>

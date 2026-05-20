@@ -217,6 +217,7 @@ type ReportJSON struct {
 	Moment struct {
 		Time    string `json:"time"`
 		Comment string `json:"comment"`
+		Roast   string `json:"roast"`
 	} `json:"moment"`
 	Interaction struct {
 		Type    string `json:"type"`
@@ -249,7 +250,11 @@ func (r ReportJSON) String(theme *DailyTheme) string {
 	// 关键时刻
 	if r.Moment.Comment != "" {
 		sb.WriteString(theme.MomentHeader + "\n")
-		sb.WriteString(fmt.Sprintf("[%s] %s\n\n", r.Moment.Time, r.Moment.Comment))
+		sb.WriteString(fmt.Sprintf("[%s]\n%s\n", r.Moment.Time, r.Moment.Comment))
+		if r.Moment.Roast != "" {
+			sb.WriteString(r.Moment.Roast + "\n")
+		}
+		sb.WriteString("\n")
 	}
 
 	// 社交图谱
