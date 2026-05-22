@@ -10,6 +10,7 @@ const (
 	MsgTypeReply   = "reply"
 	MsgTypeForward = "forward"
 	MsgTypeRecord  = "record"
+	MsgTypeJson    = "json"
 )
 
 func HasMsgType(typ string) bool {
@@ -21,6 +22,7 @@ func HasMsgType(typ string) bool {
 		MsgTypeReply,
 		MsgTypeForward,
 		MsgTypeRecord,
+		MsgTypeJson,
 	}, typ)
 }
 
@@ -40,6 +42,8 @@ func MsgTypeString(typ string) string {
 		return "转发(搬屎)"
 	case MsgTypeRecord:
 		return "语音"
+	case MsgTypeJson:
+		return "分享内容(搬屎)"
 	}
 	return ""
 }
