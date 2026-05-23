@@ -55,6 +55,8 @@ func formatMessage(msg GroupMessage, ump map[int64]User) string {
 		action = "转了一条消息(搬屎)"
 	case MsgTypeRecord:
 		action = "发了条语音"
+	case MsgTypeJson:
+		action = "分享了一条内容(搬屎)"
 	}
 	if action == "" {
 		return ""

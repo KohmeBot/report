@@ -42,7 +42,7 @@ func (p *PluginReport) OnHandleMessage(engine plugin.Engine) {
 			TargetUserID: getTargetID(ctx),
 			Url:          getUrl(ctx.Event.Message),
 			Nickname:     ctx.CardOrNickName(ctx.Event.UserID),
-			Content:      ctx.Event.Message.ExtractPlainText(),
+			Content:      getText(ctx.Event.Message),
 			MsgType:      msgType,
 			MsgID:        ctx.Event.MessageID.(int64),
 			CreatedAt:    t,
@@ -59,6 +59,10 @@ func getUrl(msgs message.Message) string {
 		}
 	}
 	return ""
+}
+
+func getText(msgs message.Message) string {
+	return msgs.ExtractPlainText()
 }
 
 func getTargetID(ctx *zero.Ctx) int64 {
