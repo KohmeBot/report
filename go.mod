@@ -5,7 +5,7 @@ go 1.26
 require (
 	github.com/chromedp/chromedp v0.15.1
 	github.com/fumiama/cron v1.3.0
-	github.com/kohmebot/chatai v0.2.4
+	github.com/kohmebot/chatai v0.2.9
 	github.com/kohmebot/plugin/v2 v2.0.2
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.11.1

@@ -14,12 +14,13 @@ import (
 )
 
 type Aggregator struct {
-	db      *gorm.DB
-	invoker *chataisdk.ChatAIInvoker
+	db       *gorm.DB
+	invoker  *chataisdk.ChatAIInvoker
+	thinking bool
 }
 
-func NewAggregator(db *gorm.DB, invoker *chataisdk.ChatAIInvoker) *Aggregator {
-	return &Aggregator{db: db, invoker: invoker}
+func NewAggregator(db *gorm.DB, invoker *chataisdk.ChatAIInvoker, thinking bool) *Aggregator {
+	return &Aggregator{db: db, invoker: invoker, thinking: thinking}
 }
 
 // Aggregate 对指定群、指定日期做全量聚合，返回DailyReport
@@ -122,7 +123,7 @@ func (a *Aggregator) Aggregate(groupID int64, date string) (*DailyReport, map[in
 
 	if len(report.HotPeriod.Messages) > 0 {
 		// 用AI直接提取热点摘要
-		report.HotPeriod.Summary, err = invoker.NewTextInvoker(a.invoker, summarySystemPrompt, true, false).DoRequest(fmt.Sprintf(hotPeriodPrompt,
+		report.HotPeriod.Summary, err = invoker.NewTextInvoker(a.invoker, summarySystemPrompt, true, a.thinking).DoRequest(fmt.Sprintf(hotPeriodPrompt,
 			formatTime(report.HotPeriod.Start),
 			formatTime(report.HotPeriod.End),
 			len(report.HotPeriod.Messages),

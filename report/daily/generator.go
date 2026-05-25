@@ -29,14 +29,16 @@ type Generator struct {
 	invoker    *chataisdk.ChatAIInvoker
 	env        plugin.Env
 	chromeAddr string
+	thinking   bool
 }
 
-func NewGenerator(env plugin.Env, db *gorm.DB, invoker *chataisdk.ChatAIInvoker, chromeAddr string) *Generator {
+func NewGenerator(env plugin.Env, db *gorm.DB, invoker *chataisdk.ChatAIInvoker, chromeAddr string, thinking bool) *Generator {
 	return &Generator{
 		env:        env,
 		db:         db,
 		invoker:    invoker,
 		chromeAddr: chromeAddr,
+		thinking:   thinking,
 	}
 }
 
@@ -52,7 +54,7 @@ func (g *Generator) BuildPrompt(group int64, t time.Time) (string, *DailyReport,
 	date := t.Format("2006-01-02")
 
 	// 生成日报
-	aggregator := NewAggregator(g.db, g.invoker)
+	aggregator := NewAggregator(g.db, g.invoker, g.thinking)
 	report, ump, err := aggregator.Aggregate(group, date)
 	if err != nil {
 		return "", nil, fmt.Errorf("聚合失败: %w", err)
@@ -76,7 +78,7 @@ func (g *Generator) GenerateReport(group int64, groupName string, t time.Time, t
 		data,
 	)
 	var reportRes ReportJSON
-	err = invoker.NewJsonInvoker(g.invoker, systemPrompt, true, false).DoRequest(req, &reportRes)
+	err = invoker.NewJsonInvoker(g.invoker, systemPrompt, true, g.thinking).DoRequest(req, &reportRes)
 	if err != nil {
 		return Report{}, fmt.Errorf("AI调用失败: %w", err)
 	}
@@ -192,7 +194,7 @@ func (g *Generator) GenerateTheme(t time.Time, specifyString string, exclude ...
 	}
 
 	var theme DailyTheme
-	err := invoker.NewJsonInvoker(g.invoker, systemPrompt, true, false).DoRequest(req, &theme)
+	err := invoker.NewJsonInvoker(g.invoker, systemPrompt, true, g.thinking).DoRequest(req, &theme)
 
 	return &theme, err
 }

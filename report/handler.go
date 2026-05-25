@@ -197,7 +197,7 @@ func (p *PluginReport) GetTheme(t time.Time) (theme *daily.DailyTheme) {
 		logrus.Infof("今日主题: %+v", theme)
 	}()
 	var err error
-	g := daily.NewGenerator(p.env, p.db, p.invoker, p.conf.ChromeAddr())
+	g := daily.NewGenerator(p.env, p.db, p.invoker, p.conf.ChromeAddr(), p.conf.Thinking)
 
 	if !p.conf.RegenTheme {
 		theme, err = g.GetTodayTheme(t)
@@ -234,7 +234,7 @@ func (p *PluginReport) GetTheme(t time.Time) (theme *daily.DailyTheme) {
 
 func (p *PluginReport) GetReport(group int64, groupName string, t time.Time, theme *daily.DailyTheme) (daily.Report, error) {
 
-	g := daily.NewGenerator(p.env, p.db, p.invoker, p.conf.ChromeAddr())
+	g := daily.NewGenerator(p.env, p.db, p.invoker, p.conf.ChromeAddr(), p.conf.Thinking)
 
 	report, err := g.GenerateReport(group, groupName, t, theme)
 
@@ -243,7 +243,7 @@ func (p *PluginReport) GetReport(group int64, groupName string, t time.Time, the
 
 func (p *PluginReport) GetPrompt(group int64, t time.Time) (string, error) {
 
-	g := daily.NewGenerator(p.env, p.db, p.invoker, p.conf.ChromeAddr())
+	g := daily.NewGenerator(p.env, p.db, p.invoker, p.conf.ChromeAddr(), p.conf.Thinking)
 
 	prompt, _, err := g.BuildPrompt(group, t)
 

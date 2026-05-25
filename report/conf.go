@@ -11,6 +11,8 @@ type Config struct {
 	OnlyText bool `yaml:"only_text"`
 	// ChromeWs 地址,用于渲染图片，如果地址为空，则使用纯文本生成
 	ChromeWs string `yaml:"chrome_ws"`
+	// 在生成时是否开启深度思考,会加大token使用
+	Thinking bool `yaml:"thinking"`
 }
 
 func (c Config) ChromeAddr() string {
