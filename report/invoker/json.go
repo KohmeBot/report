@@ -95,7 +95,7 @@ func validateValue(v reflect.Value, fieldName string) error {
 		}
 
 	case reflect.Slice:
-		if v.IsNil() || v.Len() == 0 {
+		if v.IsNil() {
 			if fieldName != "" {
 				return fmt.Errorf("field '%s' is empty slice", fieldName)
 			}
