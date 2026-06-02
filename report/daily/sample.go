@@ -56,6 +56,17 @@ func splitByPause(msgs []GroupMessage, pauseThreshold time.Duration) []ChatSegme
 	return segments
 }
 
+// contentMessage 返回有实际内容的消息
+func contentMessage(msgs []GroupMessage) []GroupMessage {
+	res := make([]GroupMessage, 0, len(msgs))
+	for _, msg := range msgs {
+		if msg.Content != "" {
+			res = append(res, msg)
+		}
+	}
+	return res
+}
+
 // compressMessages 控制消息数量，防止token爆炸
 func compressMessages(msgs []GroupMessage) []GroupMessage {
 	count := len(msgs)

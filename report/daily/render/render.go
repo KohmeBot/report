@@ -104,6 +104,7 @@ func RenderToImage(data *ReportData, chromeAddr string, opts ...Option) ([]byte,
 // ───────────────────────── 模板函数 ─────────────────────────
 
 var funcMap = template.FuncMap{
+	"axisLabels": axisLabels,
 	"avatar":     avatarHTML,   // 任意尺寸头像（img 或首字母兜底）
 	"userChip":   userChipHTML, // 行内「头像+昵称」胶囊
 	"detail":     detailHTML,   // 话题详情：替换 [用户ID] 为胶囊
@@ -121,6 +122,14 @@ var funcMap = template.FuncMap{
 var avatarPalette = []string{
 	"#FF7A59", "#5FC9A0", "#5BB8E8", "#A78BE0",
 	"#FF8FB3", "#FFB03B", "#E0623F", "#3FA882",
+}
+
+func axisLabels(slots []HourSlot) []int {
+	labels := make([]int, 0, (len(slots)+2)/3)
+	for i := 0; i < len(slots); i += 3 {
+		labels = append(labels, slots[i].Hour)
+	}
+	return labels
 }
 
 func avatarColor(u *User) string {

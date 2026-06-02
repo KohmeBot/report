@@ -199,7 +199,7 @@ func (g *Generator) buildPrompt(r *AggregateData, ump map[int64]User) Prompts {
 		QualityPrompt: "",
 	}
 
-	msgs := compressMessages(r.GroupMessages)
+	msgs := compressMessages(contentMessage(r.GroupMessages))
 	msgsText := formatMessages(msgs, ump)
 
 	prompts.TopicPrompt = fmt.Sprintf(topicPrompt, msgsText)

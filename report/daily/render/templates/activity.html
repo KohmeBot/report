@@ -9,9 +9,9 @@
       <div class="bar-col"><div class="bar{{if isPeak .Count $max}} peak{{end}}" style="height:{{barHeight .Count $max}}%"></div></div>
       {{end}}
     </div>
-    <div class="axis">
-      <span>0</span><span>3</span><span>6</span><span>9</span><span>12</span><span>15</span><span>18</span><span>21</span>
-    </div>
+  <div class="axis">
+    {{range axisLabels .Stats.HourlyDistribution}}<span>{{.}}</span>{{end}}
+  </div>
   {{else}}{{template "empty" "今天还没有活跃轨迹数据~"}}{{end}}{{else}}{{template "empty" "今天还没有活跃轨迹数据~"}}{{end}}
 </div>
 {{end}}

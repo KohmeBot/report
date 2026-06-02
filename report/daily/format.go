@@ -61,9 +61,9 @@ func formatMessage(msg GroupMessage, ump map[int64]User) string {
 		return ""
 	}
 	content = msg.Content
-	if runeLen(content) > 30 {
-		// 限制30字
-		content = string([]rune(content)[:30]) + "..."
+	if runeLen(content) > 100 {
+		// 限制100字
+		content = string([]rune(content)[:100]) + "..."
 	}
 	// [5-15 11:11] 某某: XXX
 	builder.WriteString(fmt.Sprintf("[%s] (%d) [%s]", msg.CreatedAt.Format("01-02 15:04"), u.UserId, action))
