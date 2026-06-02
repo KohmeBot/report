@@ -1,9 +1,9 @@
 package daily
 
 import (
-	"errors"
 	"fmt"
 	"github.com/kohmebot/report/report/daily/render"
+	"html/template"
 	"slices"
 	"strconv"
 	"strings"
@@ -86,6 +86,14 @@ func (g *Generator) makeHourlyDistribution(totalMsg int, timeStats []TimeStat) [
 	return res
 }
 
+func (g *Generator) makeHighlightTime(hotPeriod HotPeriod) string {
+	start, end := hotPeriod.Start.Format("04:05"), hotPeriod.End.Format("04:05")
+	if start == end {
+		return start
+	}
+	return fmt.Sprintf("%s~%s", start, end)
+}
+
 func (g *Generator) fullRenderUsers(group int64, data *render.ReportData) {
 	var ctx *zero.Ctx
 	g.env.UseBot(func(c *zero.Ctx) {
@@ -130,7 +138,7 @@ func (g *Generator) GenerateReport(title string, group int64, groupName string, 
 	}
 
 	report := &render.DailyReport{
-		Title:     title, // TODO
+		Title:     template.HTML(title), // TODO
 		GroupName: groupName,
 		GroupID:   strconv.FormatInt(group, 10),
 		Date:      t.Format("2006年 01月 02日"),
@@ -139,7 +147,7 @@ func (g *Generator) GenerateReport(title string, group int64, groupName string, 
 			ActiveUsers:        data.ActiveUsers,
 			CharCount:          data.TotalCharCount,
 			MemeCount:          data.TotalMemeCount,
-			HighLightTime:      fmt.Sprintf("%s~%s", data.HotPeriod.Start.Format("04:05"), data.HotPeriod.End.Format("04:05")),
+			HighLightTime:      g.makeHighlightTime(data.HotPeriod),
 			HourlyDistribution: g.makeHourlyDistribution(data.TotalMsg, data.TimeStats),
 		},
 	}
@@ -180,25 +188,6 @@ func (g *Generator) InvokeAi(prompts Prompts) (topics []*render.TopicItem, users
 
 	return
 
-}
-
-func (g *Generator) saveReport(group int64, date, data, report, theme string) error {
-	var stat GroupDailyStat
-	err := g.db.Where("group_id = ? AND date = ?", group, date).First(&stat).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return g.db.Create(&GroupDailyStat{
-			GroupID: group,
-			Date:    date,
-			Data:    data,
-			Report:  report,
-			Theme:   theme,
-		}).Error
-	}
-	return g.db.Model(&stat).Updates(map[string]any{
-		"data":   data,
-		"report": report,
-		"theme":  theme,
-	}).Error
 }
 
 // buildPrompt 把DailyReport拼成喂给AI的结构化文本

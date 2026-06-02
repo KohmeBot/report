@@ -132,7 +132,7 @@ var avatarPalette = []string{
 	"#FF8FB3", "#FFB03B", "#E0623F", "#3FA882",
 }
 
-func avatarColor(u User) string {
+func avatarColor(u *User) string {
 	key := u.Nickname
 	if u.UserID != 0 {
 		key = strconv.FormatInt(u.UserID, 10)
@@ -154,7 +154,7 @@ func firstRune(s string) string {
 	return "?"
 }
 
-func displayName(u User) string {
+func displayName(u *User) string {
 	if n := strings.TrimSpace(u.Nickname); n != "" {
 		return n
 	}
@@ -176,7 +176,7 @@ func normalizeAvatar(b64 string) string {
 }
 
 // avatarHTML 生成一个圆形头像。有 base64 用图片，否则首字母圆形兜底。
-func avatarHTML(u User, size int) template.HTML {
+func avatarHTML(u *User, size int) template.HTML {
 	if src := normalizeAvatar(u.AvatarBase64); src != "" {
 		return template.HTML(fmt.Sprintf(
 			`<img class="gd-av" style="width:%dpx;height:%dpx" src="%s" alt="">`,
@@ -192,7 +192,7 @@ func avatarHTML(u User, size int) template.HTML {
 }
 
 // userChipHTML 是行内的「小头像 + 昵称」胶囊，用于话题贡献者、详情引用等。
-func userChipHTML(u User) template.HTML {
+func userChipHTML(u *User) template.HTML {
 	var av string
 	if src := normalizeAvatar(u.AvatarBase64); src != "" {
 		av = fmt.Sprintf(`<img class="gd-chip-av" src="%s" alt="">`, html.EscapeString(src))
@@ -208,8 +208,8 @@ func userChipHTML(u User) template.HTML {
 var refRe = regexp.MustCompile(`\[(\d+)\]`)
 
 // detailHTML 把话题详情里的 [用户ID] 替换成用户胶囊，其余文本做转义。
-func detailHTML(detail string, contributors []User) template.HTML {
-	m := make(map[int64]User, len(contributors))
+func detailHTML(detail string, contributors []*User) template.HTML {
+	m := make(map[int64]*User, len(contributors))
 	for _, u := range contributors {
 		m[u.UserID] = u
 	}

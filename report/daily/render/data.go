@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	zero "github.com/wdvxdr1123/ZeroBot"
+	"html/template"
 	"image"
 	"image/png"
 	"net/http"
@@ -26,6 +27,9 @@ type User struct {
 }
 
 func (u *User) IsEmpty() bool {
+	if u == nil {
+		return true
+	}
 	return u.UserID == 0
 }
 
@@ -37,6 +41,9 @@ func (u *User) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &u.UserID)
 }
 func (u *User) Full(ctx *zero.Ctx, group int64) {
+	if ctx == nil {
+		return
+	}
 	u.Nickname = ctx.GetGroupMemberInfo(group, u.UserID, false).Get("card").String()
 	if u.Nickname == "" {
 		u.Nickname = ctx.GetStrangerInfo(u.UserID, false).Get("nickname").String()
@@ -64,10 +71,10 @@ func (u *User) Full(ctx *zero.Ctx, group int64) {
 }
 
 type DailyReport struct {
-	Title     string `json:"title"` // 群聊标题
-	GroupName string `json:"group_name"`
-	GroupID   string `json:"group_id"`
-	Date      string `json:"date"` // YYYY年-MM月-DD日
+	Title     template.HTML `json:"title"` // 群聊标题
+	GroupName string        `json:"group_name"`
+	GroupID   string        `json:"group_id"`
+	Date      string        `json:"date"` // YYYY年-MM月-DD日
 
 	// ── Header stats ──────────────────────────
 	Stats Stats `json:"stats"`

@@ -138,6 +138,10 @@ func validateValue(v reflect.Value, fieldName string) error {
 			if !ft.IsExported() {
 				continue
 			}
+			// 跳过 json:"-"
+			if tag := ft.Tag.Get("json"); tag == "-" {
+				continue
+			}
 
 			name := ft.Name
 			if fieldName != "" {
