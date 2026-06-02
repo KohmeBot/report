@@ -3,8 +3,8 @@ package daily
 import "time"
 
 const (
-	softLimit = 200 // 超过这个数量开始压缩
-	hardLimit = 400 // 超过这个数量强制采样
+	softLimit = 400 // 超过这个数量开始压缩
+	hardLimit = 600 // 超过这个数量强制采样
 )
 
 // findHotSegment 找消息最多的自然段

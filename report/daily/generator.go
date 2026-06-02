@@ -87,7 +87,7 @@ func (g *Generator) makeHourlyDistribution(totalMsg int, timeStats []TimeStat) [
 }
 
 func (g *Generator) makeHighlightTime(hotPeriod HotPeriod) string {
-	start, end := hotPeriod.Start.Format("04:05"), hotPeriod.End.Format("04:05")
+	start, end := hotPeriod.Start.Format("15:04"), hotPeriod.End.Format("15:04")
 	if start == end {
 		return start
 	}
@@ -162,7 +162,7 @@ func (g *Generator) GenerateReport(title string, group int64, groupName string, 
 
 	g.fullRenderUsers(group, &reportData)
 
-	imgBytes, err := render.RenderToImage(&reportData, g.chromeAddr, render.WithGeneratedBy(g.botNickName()), render.WithGeneratedAt(t.Format("2006-01-02 15:04:05")))
+	imgBytes, err := render.RenderToImage(&reportData, g.chromeAddr, render.WithGeneratedBy(g.botNickName()), render.WithGeneratedAt(time.Now().Format("2006-01-02 15:04:05")))
 
 	return Report{
 		Text:  "", // TODO 生成图片失败时，fallback为文本

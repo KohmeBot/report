@@ -102,7 +102,7 @@ func (a *Aggregator) Aggregate(groupID int64, date string) (*AggregateData, map[
 	report.ActiveUsers = len(stats)
 
 	// 5. 小时活跃度
-	report.TimeStats = a.calcTimeStats(messages)
+	report.TimeStats = a.calcTimeStats(messages, start, end)
 
 	// 6. 字符数量与表情包数量
 	for _, msg := range messages {
@@ -426,7 +426,7 @@ func findGroupRepeatMsg(msgs []GroupMessage, ump map[int64]User) RepeatStat {
 }
 
 // calcTimeStats 统计时间消息量，返回时段
-func (a *Aggregator) calcTimeStats(messages []GroupMessage) []TimeStat {
+func (a *Aggregator) calcTimeStats(messages []GroupMessage, start time.Time, end time.Time) []TimeStat {
 	timeCount := make(map[time.Time]int)
 	for _, msg := range messages {
 		t := time.Date(
@@ -438,6 +438,15 @@ func (a *Aggregator) calcTimeStats(messages []GroupMessage) []TimeStat {
 		timeCount[t]++
 	}
 
+	// 补全 start~end 范围内缺失的小时，count 为 0
+	startHour := start.Truncate(time.Hour)
+	endHour := end.Truncate(time.Hour)
+	for t := startHour; !t.After(endHour); t = t.Add(time.Hour) {
+		if _, ok := timeCount[t]; !ok {
+			timeCount[t] = 0
+		}
+	}
+
 	stats := make([]TimeStat, 0, len(timeCount))
 	for t, c := range timeCount {
 		stats = append(stats, TimeStat{Time: t, Count: c})
@@ -445,7 +454,6 @@ func (a *Aggregator) calcTimeStats(messages []GroupMessage) []TimeStat {
 	sort.Slice(stats, func(i, j int) bool {
 		return stats[i].Count > stats[j].Count
 	})
-
 	return stats
 }
 

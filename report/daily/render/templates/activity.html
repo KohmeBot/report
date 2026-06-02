@@ -1,7 +1,7 @@
 {{define "activity"}}
 <div class="card b-mint">
   <span class="tape tr"></span>
-  <span class="tab t-mint"><span class="ico">📈</span>24H 活跃轨迹</span>
+  <span class="tab t-mint"><span class="ico">📈</span>活跃轨迹</span>
   {{with .}}{{if .Stats.HourlyDistribution}}
     {{$max := maxCount .Stats.HourlyDistribution}}
     <div class="chart">
