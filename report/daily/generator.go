@@ -116,9 +116,9 @@ func (g *Generator) fullRenderUsers(group int64, data *render.ReportData) {
 		datum.Sender.Full(ctx, group)
 		datum.Contributors = make([]*render.User, 0)
 
-		// 提取 datum.Content 中类似 [123456] 的文本，解析为 user 填入 datum.Contributors 中，并去重
+		// 提取 datum.Reason 中类似 [123456] 的文本，解析为 user 填入 datum.Contributors 中，并去重
 		re := regexp.MustCompile(`\[(\d+)\]`)
-		matches := re.FindAllStringSubmatch(datum.Content, -1)
+		matches := re.FindAllStringSubmatch(datum.Reason, -1)
 
 		existing := make(map[int64]bool)
 		for _, c := range datum.Contributors {
@@ -207,6 +207,19 @@ func (g *Generator) InvokeAi(prompts Prompts) (topics []*render.TopicItem, users
 	}
 	if err = iv.DoRequest(prompts.QualityPrompt, &quality); err != nil {
 		return
+	}
+
+	if quality != nil {
+		// 倒序
+		slices.SortFunc(quality.Dimensions, func(a, b render.Dimension) int {
+			if a.Percentage < b.Percentage {
+				return -1
+			}
+			if a.Percentage > b.Percentage {
+				return 1
+			}
+			return 0
+		})
 	}
 
 	return
