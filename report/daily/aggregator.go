@@ -1,14 +1,12 @@
 package daily
 
 import (
-	"fmt"
 	"slices"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/kohmebot/chatai/chatai/chataisdk"
-	"github.com/kohmebot/report/report/invoker"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
@@ -24,11 +22,11 @@ func NewAggregator(db *gorm.DB, invoker *chataisdk.ChatAIInvoker, thinking bool)
 }
 
 // Aggregate 对指定群、指定日期做全量聚合，返回DailyReport
-func (a *Aggregator) Aggregate(groupID int64, date string) (*DailyReport, map[int64]User, error) {
+func (a *Aggregator) Aggregate(groupID int64, date string) (*AggregateData, map[int64]User, error) {
 	now := time.Now()
 	defer func() {
 		latency := time.Since(now)
-		logrus.Infof("DailyReport %d %s 生成完毕，耗时 %s", groupID, date, latency)
+		logrus.Infof("AggregateData %d %s 生成完毕，耗时 %s", groupID, date, latency)
 	}()
 
 	startDay, err := time.ParseInLocation(
@@ -74,12 +72,13 @@ func (a *Aggregator) Aggregate(groupID int64, date string) (*DailyReport, map[in
 		return a.CreatedAt.Compare(b.CreatedAt)
 	})
 
-	report := &DailyReport{
-		GroupID:   groupID,
-		Date:      date,
-		TotalMsg:  len(messages),
-		StartTime: start,
-		EndTime:   end,
+	report := &AggregateData{
+		GroupMessages: messages,
+		GroupID:       groupID,
+		Date:          date,
+		TotalMsg:      len(messages),
+		StartTime:     start,
+		EndTime:       end,
 	}
 
 	// 2. 按用户分组（在内存里做，避免多次查库）
@@ -105,14 +104,13 @@ func (a *Aggregator) Aggregate(groupID int64, date string) (*DailyReport, map[in
 	// 5. 小时活跃度
 	report.TimeStats = a.calcTimeStats(messages)
 
-	// 6. 全群关键词（把所有人的发言合并后提取）
-	allContents := make([]string, 0, len(messages))
+	// 6. 字符数量与表情包数量
 	for _, msg := range messages {
-		if msg.MsgType == MsgTypeText && msg.Content != "" {
-			allContents = append(allContents, msg.Content)
+		if msg.MsgType == MsgTypeImg {
+			report.TotalMemeCount++
 		}
+		report.TotalCharCount += runeLen(msg.Content)
 	}
-	report.TopKeywords = ExtractKeywords(allContents, 8)
 
 	// 7. 截取首条和最后一条消息
 	report.FirstMessage = messages[0]
@@ -120,21 +118,6 @@ func (a *Aggregator) Aggregate(groupID int64, date string) (*DailyReport, map[in
 
 	// 8. 摘取热点信息
 	report.HotPeriod = findHotSegment(messages)
-
-	if len(report.HotPeriod.Messages) > 0 {
-		// 用AI直接提取热点摘要
-		report.HotPeriod.Summary, err = invoker.NewTextInvoker(a.invoker, summarySystemPrompt, true, a.thinking).DoRequest(fmt.Sprintf(hotPeriodPrompt,
-			formatTime(report.HotPeriod.Start),
-			formatTime(report.HotPeriod.End),
-			len(report.HotPeriod.Messages),
-			formatMessages(report.HotPeriod.Messages, ump),
-		))
-
-		if err != nil {
-			logrus.Errorf("生成摘要调用AI接口失败:%v", err)
-		}
-		time.Sleep(2 * time.Second)
-	}
 
 	// 9. 摘取被复读最多次的消息
 	report.RepeatMessage = findGroupRepeatMsg(messages, ump)
@@ -285,7 +268,6 @@ func (a *Aggregator) calcUserStats(userMap map[User][]GroupMessage, ump map[int6
 		stat.RepeatMsg, stat.RepeatCount = findRepeatMsg(textContents)
 
 		stat.AllContents = textContents
-		stat.SampleMsgs = SampleMessages(msgs)
 
 		stats = append(stats, stat)
 	}

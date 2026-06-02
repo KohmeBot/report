@@ -1,0 +1,15 @@
+{{define "header"}}
+<div class="hero">
+  <span class="doodle-star" style="left:30px;top:-2px;color:#FFB03B;">✦</span>
+  <span class="doodle-star" style="right:24px;top:18px;color:#5BB8E8;">✿</span>
+  <div class="ribbon">
+    <h1><span class="hl c1">五彩斑斓</span>的一天<br>群里<span class="c2">发</span><span class="c3">生</span><span class="c4">了</span>什么吧!</h1>
+  </div>
+  {{with .}}
+    {{if hasAny .Date}}<div class="date">📅 {{.Date}}</div>{{end}}
+    {{if hasAny .GroupName}}<span class="gname"># {{.GroupName}}</span>{{end}}
+  {{else}}
+    <div class="date">📅 今天</div>
+  {{end}}
+</div>
+{{end}}

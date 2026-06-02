@@ -1,0 +1,26 @@
+{{define "report" -}}
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{with .Data.Report}}{{.GroupName}} · {{end}}群日报</title>
+{{template "style" .}}
+</head>
+<body>
+<div class="page">
+  {{template "header" .Data.Report}}
+  {{template "stats" .Data.Report}}
+  {{template "activity" .Data.Report}}
+  {{template "topics" .Data.Topics}}
+  {{template "portraits" .Data.UserData}}
+  {{template "golden" .Data.GoldenData}}
+  {{template "quality" .Data.GroupQuality}}
+  {{template "footer" .}}
+</div>
+</body>
+</html>
+{{- end}}
+
+{{/* 通用空状态：参数为一句提示文字 */}}
+{{define "empty"}}<div class="gd-empty"><span class="em">🌙</span>{{.}}</div>{{end}}

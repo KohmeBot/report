@@ -1,14 +1,12 @@
 package daily
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
-	"maps"
-	"math/rand"
+	"github.com/kohmebot/report/report/daily/render"
 	"slices"
+	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/kohmebot/chatai/chatai/chataisdk"
@@ -30,15 +28,17 @@ type Generator struct {
 	env        plugin.Env
 	chromeAddr string
 	thinking   bool
+	online     bool
 }
 
-func NewGenerator(env plugin.Env, db *gorm.DB, invoker *chataisdk.ChatAIInvoker, chromeAddr string, thinking bool) *Generator {
+func NewGenerator(env plugin.Env, db *gorm.DB, invoker *chataisdk.ChatAIInvoker, chromeAddr string, thinking bool, online bool) *Generator {
 	return &Generator{
 		env:        env,
 		db:         db,
 		invoker:    invoker,
 		chromeAddr: chromeAddr,
 		thinking:   thinking,
+		online:     online,
 	}
 }
 
@@ -50,57 +50,136 @@ func (g *Generator) botNickName() string {
 	return "bot"
 }
 
-func (g *Generator) BuildPrompt(group int64, t time.Time) (string, *DailyReport, error) {
+func (g *Generator) BuildPrompt(group int64, t time.Time) (Prompts, *AggregateData, error) {
 	date := t.Format("2006-01-02")
 
 	// 生成日报
 	aggregator := NewAggregator(g.db, g.invoker, g.thinking)
 	report, ump, err := aggregator.Aggregate(group, date)
 	if err != nil {
-		return "", nil, fmt.Errorf("聚合失败: %w", err)
+		return Prompts{}, nil, fmt.Errorf("聚合失败: %w", err)
 	}
 	if report == nil {
 		logrus.Infof("%d 昨日暂无数据", group)
-		return "", nil, nil
+		return Prompts{}, nil, nil
 	}
 
 	data := g.buildPrompt(report, ump)
 	return data, report, nil
 }
 
-func (g *Generator) GenerateReport(group int64, groupName string, t time.Time, theme *DailyTheme) (Report, error) {
-	date := t.Format("2006-01-02")
+func (g *Generator) makeHourlyDistribution(totalMsg int, timeStats []TimeStat) []render.HourSlot {
+	timeStats = slices.Clone(timeStats)
+	// 把timeStats按时间升序
+	slices.SortFunc(timeStats, func(a, b TimeStat) int {
+		return a.Time.Compare(b.Time)
+	})
 
-	data, report, err := g.BuildPrompt(group, t)
+	res := make([]render.HourSlot, 0, len(timeStats))
+	for _, t := range timeStats {
+		res = append(res, render.HourSlot{
+			Count:      t.Count,
+			Hour:       t.Time.Hour(),
+			Percentage: (float64(totalMsg) / float64(t.Count)) * 100,
+		})
+	}
+	return res
+}
 
-	req := fmt.Sprintf(reportPrompt,
-		theme.String(),
-		data,
-	)
-	var reportRes ReportJSON
-	err = invoker.NewJsonInvoker(g.invoker, systemPrompt, true, g.thinking).DoRequest(req, &reportRes)
+func (g *Generator) fullRenderUsers(group int64, data *render.ReportData) {
+	var ctx *zero.Ctx
+	g.env.UseBot(func(c *zero.Ctx) {
+		ctx = c
+	})
+	if ctx == nil {
+		return
+	}
+	for _, topic := range data.Topics {
+		for _, contributor := range topic.Contributors {
+			contributor.Full(ctx, group)
+		}
+	}
+	for _, datum := range data.UserData {
+		datum.User.Full(ctx, group)
+	}
+	for _, datum := range data.GoldenData {
+		datum.Sender.Full(ctx, group)
+	}
+
+	data.GroupQuality.AIUser = &render.User{
+		UserID: ctx.GetLoginInfo().Get("user_id").Int(),
+	}
+	data.GroupQuality.AIUser.Full(ctx, group)
+	data.GroupQuality.AIUser.Nickname = g.botNickName()
+
+}
+
+func (g *Generator) GenerateReport(title string, group int64, groupName string, t time.Time) (Report, error) {
+
+	prompts, data, err := g.BuildPrompt(group, t)
 	if err != nil {
-		return Report{}, fmt.Errorf("AI调用失败: %w", err)
+		return Report{}, fmt.Errorf("生成日报失败: %w", err)
+	}
+	if data == nil {
+		return Report{}, nil
 	}
 
-	dataJSON, _ := json.Marshal(report)
-	reportJson, _ := json.Marshal(reportRes)
-	themeJSON, _ := json.Marshal(theme)
-	if err = g.saveReport(group, date, string(dataJSON), string(reportJson), string(themeJSON)); err != nil {
-		logrus.Warnf("持久化失败: %v", err)
-	}
-
-	r := newReportTemplateData(t, theme, reportRes, groupName, g.botNickName())
-
-	imgBytes, err := r.renderReportImage(g.chromeAddr, group)
+	topics, users, goldens, quality, err := g.InvokeAi(prompts)
 	if err != nil {
-		logrus.Errorf("图片生成失败: %v", err)
+		return Report{}, fmt.Errorf("生成日报失败: %w", err)
 	}
+
+	report := &render.DailyReport{
+		Title:     title, // TODO
+		GroupName: groupName,
+		GroupID:   strconv.FormatInt(group, 10),
+		Date:      t.Format("2006年 01月 02日"),
+		Stats: render.Stats{
+			TotalMessages:      data.TotalMsg,
+			ActiveUsers:        data.ActiveUsers,
+			CharCount:          data.TotalCharCount,
+			MemeCount:          data.TotalMemeCount,
+			HighLightTime:      fmt.Sprintf("%s~%s", data.HotPeriod.Start.Format("04:05"), data.HotPeriod.End.Format("04:05")),
+			HourlyDistribution: g.makeHourlyDistribution(data.TotalMsg, data.TimeStats),
+		},
+	}
+
+	reportData := render.ReportData{
+		Report:       report,
+		Topics:       topics,
+		UserData:     users,
+		GoldenData:   goldens,
+		GroupQuality: quality,
+	}
+
+	g.fullRenderUsers(group, &reportData)
+
+	imgBytes, err := render.RenderToImage(&reportData, g.chromeAddr, render.WithGeneratedBy(g.botNickName()), render.WithGeneratedAt(t.Format("2006-01-02 15:04:05")))
 
 	return Report{
-		Text:  reportRes.String(theme),
+		Text:  "", // TODO 生成图片失败时，fallback为文本
 		Image: imgBytes,
-	}, nil
+	}, err
+}
+
+func (g *Generator) InvokeAi(prompts Prompts) (topics []*render.TopicItem, users []*render.UserItem, goldens []*render.GoldenItem, quality *render.GroupQuality, err error) {
+	iv := invoker.NewJsonInvoker(g.invoker, "", g.online, g.thinking)
+
+	if err = iv.DoRequest(prompts.TopicPrompt, &topics); err != nil {
+		return
+	}
+	if err = iv.DoRequest(prompts.UserPrompt, &users); err != nil {
+		return
+	}
+	if err = iv.DoRequest(prompts.GoldenPrompt, &goldens); err != nil {
+		return
+	}
+	if err = iv.DoRequest(prompts.QualityPrompt, quality); err != nil {
+		return
+	}
+
+	return
+
 }
 
 func (g *Generator) saveReport(group int64, date, data, report, theme string) error {
@@ -122,168 +201,40 @@ func (g *Generator) saveReport(group int64, date, data, report, theme string) er
 	}).Error
 }
 
-// GetTodayTheme 查是否已生成过主题，有则直接复用
-func (g *Generator) GetTodayTheme(t time.Time) (*DailyTheme, error) {
-	var stat GroupDailyStat
-	err := g.db.Where("date = ? AND theme != ''", t.Format("2006-01-02")).
-		First(&stat).Error
-	if err != nil {
-		return nil, err
-	}
-	var theme DailyTheme
-	if err := json.Unmarshal([]byte(stat.Theme), &theme); err != nil {
-		return nil, err
-	}
-	return &theme, nil
-}
-
-func (g *Generator) GetUsedTheme(ts ...time.Time) ([]*DailyTheme, error) {
-	dates := make([]string, 0, len(ts))
-	for _, t := range ts {
-		dates = append(dates, t.Format("2006-01-02"))
-	}
-	var stats []GroupDailyStat
-	err := g.db.Where("date IN ?", dates).Find(&stats).Error
-	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, err
-	}
-	res := make([]*DailyTheme, 0, len(stats))
-	for _, stat := range stats {
-		var theme DailyTheme
-		_ = json.Unmarshal([]byte(stat.Theme), &theme)
-		res = append(res, &theme)
-	}
-	return res, nil
-}
-
-func (g *Generator) GetSpecifyTheme(t time.Time) (SpecifyTheme, error) {
-	var specify SpecifyTheme
-	date := t.Format("2006-01-02")
-	err := g.db.Where("date=?", date).Find(&specify).Error
-	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		return SpecifyTheme{}, err
-	}
-
-	return specify, nil
-}
-
-func (g *Generator) GenerateTheme(t time.Time, specifyString string, exclude ...*DailyTheme) (*DailyTheme, error) {
-	excludeTheme := make(map[string]*DailyTheme, len(exclude))
-	// 做个去重
-	for _, theme := range exclude {
-		excludeTheme[theme.Theme] = theme
-	}
-	excludeStr := strings.Join(slices.Collect(maps.Keys(excludeTheme)), ",")
-
-	weekdays := []string{"日", "一", "二", "三", "四", "五", "六"}
-
-	var req string
-	if specifyString == "" {
-		req = fmt.Sprintf(themePrompt+"\n"+themePromptJson,
-			pickThemeCategory(),
-			t.Format("2006-01-02"),
-			weekdays[t.Weekday()],
-			excludeStr,
-		)
-	} else {
-		req = fmt.Sprintf(themeSpecifyPrompt+"\n"+themePromptJson,
-			specifyString,
-			t.Format("2006-01-02"),
-			weekdays[t.Weekday()],
-		)
-	}
-
-	var theme DailyTheme
-	err := invoker.NewJsonInvoker(g.invoker, systemPrompt, true, g.thinking).DoRequest(req, &theme)
-
-	return &theme, err
-}
-
 // buildPrompt 把DailyReport拼成喂给AI的结构化文本
-func (g *Generator) buildPrompt(r *DailyReport, ump map[int64]User) string {
-	var sb strings.Builder
-
-	// 基本信息
-	sb.WriteString(fmt.Sprintf("=== %s 群聊日报数据(%s - %s) ===\n\n", r.Date, formatTime(r.StartTime), formatTime(r.EndTime)))
-	sb.WriteString(fmt.Sprintf("【基本数据】\n今日发言人数：%d人\n今日总消息数：%d条\n\n",
-		r.ActiveUsers, r.TotalMsg))
-
-	// 活跃时段
-	sb.WriteString("【活跃时段Top5】\n")
-	limit := len(r.TimeStats)
-	if limit > 5 {
-		limit = 5
-	}
-	for i, h := range r.TimeStats[:limit] {
-		sb.WriteString(fmt.Sprintf("  %d. %s —— %d条\n", i+1, formatTime(h.Time), h.Count))
+func (g *Generator) buildPrompt(r *AggregateData, ump map[int64]User) Prompts {
+	prompts := Prompts{
+		TopicPrompt:   "",
+		UserPrompt:    "",
+		GoldenPrompt:  "",
+		QualityPrompt: "",
 	}
 
-	// 找出最冷清时段（0条发言的时间）
-	silentTimes := findSilentTimes(r.StartTime, r.EndTime, r.TimeStats)
-	if len(silentTimes) > 0 {
-		sb.WriteString(fmt.Sprintf("群沉默时段：%s\n", formatTimes(silentTimes)))
-	}
-	sb.WriteString("\n")
+	msgs := compressMessages(r.GroupMessages)
+	msgsText := formatMessages(msgs, ump)
 
-	// 群友排行（只取前8，太多token爆炸）
-	limit = len(r.UserStats)
-	if limit > 8 {
-		limit = 8
-	}
-	sb.WriteString(fmt.Sprintf("【发言数前%d群友数据】\n", limit))
-	for i, stat := range r.UserStats[:limit] {
-		sb.WriteString(g.buildUserBlock(i+1, stat, ump))
-	}
+	prompts.TopicPrompt = fmt.Sprintf(topicPrompt, msgsText)
 
-	// 复读最多的数据
-	if r.RepeatMessage.Content != "" {
-		sb.WriteString("【复读最多次的消息】\n")
-		sb.WriteString(fmt.Sprintf("  发起人：%s 于 %s\n",
-			r.RepeatMessage.FirstSender.Nickname,
-			formatTime(r.RepeatMessage.StartTime),
-		))
-		sb.WriteString(fmt.Sprintf("  内容：「%s」\n", r.RepeatMessage.Content))
-		sb.WriteString(fmt.Sprintf("  被复读：%d次\n", r.RepeatMessage.Count))
-		sb.WriteString("\n")
+	users := r.UserStats
+	if len(users) > 8 {
+		// 最多选8名
+		users = users[:8]
+	}
+	var builder strings.Builder
+	for i, stat := range users {
+		block := g.buildUserBlock(i+1, stat, ump)
+		builder.WriteString(block)
+		builder.WriteByte('\n')
 	}
 
-	// 热点摘要
-	if r.HotPeriod.Summary != "" {
-		sb.WriteString(fmt.Sprintf("\n【最热时段】%s-%s（%d条消息）\n摘要：%s\n",
-			formatTime(r.HotPeriod.Start),
-			formatTime(r.HotPeriod.End),
-			len(r.HotPeriod.Messages),
-			r.HotPeriod.Summary,
-		))
-	}
+	prompts.UserPrompt = fmt.Sprintf(userPrompt, builder.String())
 
-	sb.WriteString(fmt.Sprintf("\n【第一条消息】：%s\n",
-		formatMessage(r.FirstMessage, ump)))
-	sb.WriteString(fmt.Sprintf("【最后一条消息】：%s\n",
-		formatMessage(r.EndMessage, ump)))
+	prompts.GoldenPrompt = fmt.Sprintf(goldenPrompt, msgsText)
 
-	// 潜水（发言<=2条的人）
-	ghosts := []string{}
-	for _, stat := range r.UserStats {
-		if stat.MsgCount <= 2 {
-			ghosts = append(ghosts, fmt.Sprintf("%s(%d条)", stat.Nickname, stat.MsgCount))
-		}
-	}
-	if len(ghosts) > 0 {
-		sb.WriteString(fmt.Sprintf("\n【今日边缘人】\n%s\n", strings.Join(ghosts, " / ")))
-	}
+	prompts.QualityPrompt = fmt.Sprintf(qualityPrompt, msgsText)
 
-	// 关键词
-	if len(r.TopKeywords) > 0 {
-		sb.WriteString("\n【今日高频词】\n")
-		parts := make([]string, 0, len(r.TopKeywords))
-		for _, kw := range r.TopKeywords {
-			parts = append(parts, fmt.Sprintf("%s(%d次)", kw.Word, kw.Count))
-		}
-		sb.WriteString(strings.Join(parts, " / ") + "\n")
-	}
+	return prompts
 
-	return sb.String()
 }
 
 func (g *Generator) buildUserBlock(rank int, stat UserStat, ump map[int64]User) string {
@@ -411,65 +362,8 @@ func (g *Generator) buildUserBlock(rank int, stat UserStat, ump map[int64]User) 
 		sb.WriteString(fmt.Sprintf("   已读不回：%d人\n", ignoredCount))
 	}
 
-	// 代表发言（上限4条，带时间）
-	if len(stat.SampleMsgs) > 0 {
-		sb.WriteString("   代表发言：\n")
-		for _, m := range stat.SampleMsgs {
-			msg := m.Content
-			r := []rune(msg)
-			if len(r) > 40 {
-				msg = string(r[:40]) + "..."
-			}
-			sb.WriteString(fmt.Sprintf("     [%s] 「%s」\n",
-				formatTime(m.CreatedAt), msg))
-		}
-	}
-
 	sb.WriteString("\n")
 	return sb.String()
-}
-
-// analyzeInteractionStyle 分析和某人互动时的说话风格
-func analyzeInteractionStyle(msgs []GroupMessage) string {
-	if len(msgs) == 0 {
-		return ""
-	}
-
-	questionCount := 0
-	exclamCount := 0
-	shortCount := 0
-	totalLen := 0
-
-	for _, msg := range msgs {
-		if msg.MsgType != MsgTypeText {
-			continue
-		}
-		questionCount += strings.Count(msg.Content, "?") + strings.Count(msg.Content, "？")
-		exclamCount += strings.Count(msg.Content, "!") + strings.Count(msg.Content, "！")
-		if runeLen(msg.Content) <= 5 {
-			shortCount++
-		}
-		totalLen += runeLen(msg.Content)
-	}
-
-	avgLen := 0
-	if len(msgs) > 0 {
-		avgLen = totalLen / len(msgs)
-	}
-
-	// 按优先级匹配，只返回最突出的一个
-	switch {
-	case questionCount >= len(msgs)/2:
-		return "连环发问型，问题比答案多"
-	case exclamCount >= len(msgs)/2:
-		return "情绪输出型，感叹号停不下来"
-	case shortCount >= len(msgs)*7/10 && avgLen <= 4:
-		return "惜字如金型，三个字以内解决一切"
-	case avgLen >= 30:
-		return "长篇大论型，每次回复都像在写作文"
-	default:
-		return ""
-	}
 }
 
 // topUser 找map里value最大的key
@@ -492,161 +386,4 @@ func totalCount(m map[User]int) int {
 		total += c
 	}
 	return total
-}
-
-func findSilentTimes(start, end time.Time, timeStats []TimeStat) []time.Time {
-	if end.Before(start) {
-		return nil
-	}
-
-	// 已有发言时间
-	active := make(map[time.Time]struct{}, len(timeStats))
-	for _, stat := range timeStats {
-		if stat.Count > 0 {
-			active[stat.Time] = struct{}{}
-		}
-	}
-
-	var silent []time.Time
-
-	// 按小时检查
-	for t := start; !t.After(end); t = t.Add(time.Hour) {
-		if _, ok := active[t]; !ok {
-			silent = append(silent, t)
-		}
-	}
-
-	return silent
-}
-
-func formatTimes(times []time.Time) string {
-	parts := make([]string, len(times))
-	for i, t := range times {
-		parts[i] = fmt.Sprintf("%s", formatTime(t))
-	}
-	if len(parts) > 5 {
-		parts = parts[:5]
-		return strings.Join(parts, "、") + "等"
-	}
-	return strings.Join(parts, "、")
-}
-
-// FallbackTheme 主题生成失败时的兜底
-func FallbackTheme() *DailyTheme {
-	return themes[rand.Intn(len(themes))]
-}
-
-var (
-	themeChoice   = -1
-	themeChoiceMu sync.Mutex
-)
-
-func pickThemeCategory() string {
-	themeChoiceMu.Lock()
-	defer themeChoiceMu.Unlock()
-	if themeChoice == -1 {
-		themeChoice = rand.Intn(len(themeCategories))
-	}
-	res := themeCategories[themeChoice]
-	themeChoice++
-	if themeChoice >= len(themeCategories) {
-		themeChoice = 0
-	}
-	return res
-}
-
-var themeCategories = []string{
-	"动漫游戏IP：可参考但不限于 fate/jojo/mygo/赛马娘/黑暗之魂/怪物猎人/生化危机/明日方舟等",
-	"严肃新闻播报：可参考但不限于 新闻联播/CCTV纪录片等",
-	"中文互联网文体：可参考但不限于 知乎/小红书/贴吧等",
-	"现实场景错位：可参考但不限于 学术论文摘要/公务员申论作答体等",
-	//	"主播直播话术：可参考但不限于 电棍/孙笑川/NGA老哥/贴吧串子/等",
-	"传说怪谈：可参考但不限于 SCP基金会/后室等",
-	"游戏系统提示：Steam成就解锁/鹅鸭杀投票报告等",
-	"恋爱情感文学：可参考但不限于 二游游戏短信/网易云热评/深夜电台等",
-	"二次元亚文化风格：可参考但不限于 galgame/轻小说/少年漫/热血漫/青春校园等",
-}
-
-var themes = []*DailyTheme{
-	{
-		Theme:             "黑暗之魂",
-		Role:              "火祭司",
-		Style:             "死亡提示语风格，冷静克制，每句话都在暗示活着没有意义，大量使用「……已死」「获得了XX魂」「篝火已熄灭」",
-		UserFormat:        "用{nickname}的昨日行为判定其死亡原因和获得的魂数量",
-		GhostFormat:       "这些人已空洞化，失去了点击屏幕的欲望，灵魂在某处徘徊",
-		FirstHeader:       "🔥 篝火点燃者",
-		EndHeader:         "💀 最后的余灰",
-		MvpHeader:         "💀 死亡档案",
-		MomentHeader:      "⚡ 历史铭刻之时",
-		MomentFormat:      "用篝火燃烧烈度描述这段时间，说明当时发生了什么集体死亡事件",
-		InteractionHeader: "🕸️ 誓约与背叛",
-		InteractionFormat: "{from}持续向{to}发动侵入，使用了……",
-		TriviaHeader:      "🎲 隐藏属性揭示",
-		TriviaFormat:      "用装备词条的形式揭示这个反直觉的数据，格式像暗魂的武器说明",
-		DiagnosisHeader:   "🌡️ 世界褪色程度",
-		GhostHeader:       "👻 空洞化名单",
-		Visual: ThemeVisual{
-			BgColor:         "#0d0d0d",
-			TextColor:       "#c8b89a",
-			AccentColor:     "#ff6b35",
-			HeaderColor:     "#1a1a1a",
-			FontStyle:       "normal",
-			BorderStyle:     "glow",
-			EmojiDecoration: "💀🔥",
-		},
-	},
-	{
-		Theme:             "碧蓝档案",
-		Role:              "基沃托斯联邦调查部老师",
-		Style:             "学校报告文风，用社团/部活/校规框架描述群友行为，老师视角带着无奈和宠溺，常用「老师表示」「已记入档案」「申请紧急镇压」",
-		UserFormat:        "以{nickname}的社团活动报告形式点评，说明其昨日违规行为及处分建议",
-		GhostFormat:       "以下学生昨日无故旷课，已通知家长，正在联合对策委员会展开搜寻",
-		FirstHeader:       "📋 今日第一个到校",
-		EndHeader:         "🌙 最后离开的学生",
-		MvpHeader:         "📋 问题学生档案",
-		MomentHeader:      "⚡ 事件发生经过",
-		MomentFormat:      "用学校紧急事件报告的格式描述这段时间，说明老师是否申请了镇压",
-		InteractionHeader: "🕸️ 羁绊关系调查",
-		InteractionFormat: "据报告{from}持续对{to}发动社交攻势，联邦调查部正在评估是否立案",
-		TriviaHeader:      "🎲 老师的意外发现",
-		TriviaFormat:      "用老师批改作业时的语气揭示这个数据，结尾加一句无奈感叹",
-		DiagnosisHeader:   "🌡️ 基沃托斯今日现状",
-		GhostHeader:       "👻 旷课名单",
-		Visual: ThemeVisual{
-			BgColor:         "#f0f7ff",
-			TextColor:       "#2c3e50",
-			AccentColor:     "#4a9eff",
-			HeaderColor:     "#ddeeff",
-			FontStyle:       "normal",
-			BorderStyle:     "solid",
-			EmojiDecoration: "📋✨",
-		},
-	},
-	{
-		Theme:             "JOJO奇妙冒险",
-		Role:              "替身能力鉴定师",
-		Style:             "替身能力说明书风格，所有行为都被解读为替身能力，大量使用「能力名称」「射程」「破坏力」「精密动作性」「持续力」「成长性」六维评分，语气夸张中二",
-		UserFormat:        "为{nickname}的昨日行为命名一个替身，给出能力说明和六维评分",
-		GhostFormat:       "以下替身使用者已进入时间停止状态，推测遭遇了ザ・ワールド",
-		FirstHeader:       "⭐ 能力首次觉醒",
-		EndHeader:         "🌟 最终能力登记",
-		MvpHeader:         "🌟 替身能力鉴定书",
-		MomentHeader:      "⚡ 能力爆发时刻",
-		MomentFormat:      "用替身能力集中爆发的角度描述这段时间，说明当时群聊空间发生了什么扭曲",
-		InteractionHeader: "🕸️ 替身对决记录",
-		InteractionFormat: "{from}的替身持续向{to}发动近距离攻击，对决结果……",
-		TriviaHeader:      "🎲 隐藏能力揭示",
-		TriviaFormat:      "用「实际上这个能力还有一个隐藏效果」的格式揭示这个反直觉数据",
-		DiagnosisHeader:   "🌡️ 群聊空间扭曲程度",
-		GhostHeader:       "👻 时间停止名单",
-		Visual: ThemeVisual{
-			BgColor:         "#1a0a2e",
-			TextColor:       "#e8d5ff",
-			AccentColor:     "#c0a0ff",
-			HeaderColor:     "#2d1052",
-			FontStyle:       "bold",
-			BorderStyle:     "double",
-			EmojiDecoration: "🌟⭐",
-		},
-	},
 }

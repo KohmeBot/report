@@ -3,8 +3,8 @@ package daily
 import "time"
 
 const (
-	hotPeriodSoftLimit = 60  // 超过这个数量开始压缩
-	hotPeriodHardLimit = 120 // 超过这个数量强制采样
+	softLimit = 200 // 超过这个数量开始压缩
+	hardLimit = 400 // 超过这个数量强制采样
 )
 
 // findHotSegment 找消息最多的自然段
@@ -19,18 +19,6 @@ func findHotSegment(msgs []GroupMessage) HotPeriod {
 	segments := splitByPause(msgs, 15*time.Minute)
 	hot := pickHottest(segments)
 
-	// 消息太少，改用5分钟停顿重切
-	if hot == nil || len(hot.Messages) < 8 {
-		segments = splitByPause(msgs, 5*time.Minute)
-		hot = pickHottest(segments)
-	}
-
-	if hot == nil || len(hot.Messages) < 5 {
-		return HotPeriod{}
-	}
-
-	// 压缩策略
-	hot.Messages = compressMessages(hot.Messages)
 	return *hot
 }
 
@@ -73,22 +61,22 @@ func compressMessages(msgs []GroupMessage) []GroupMessage {
 	count := len(msgs)
 
 	// 数量正常，直接返回
-	if count <= hotPeriodSoftLimit {
+	if count <= softLimit {
 		return msgs
 	}
 
-	// 60-120条：去重压缩
+	// 去重压缩
 	// 策略：合并同一人连续发的短句，过滤纯表情/图片
-	if count <= hotPeriodHardLimit {
+	if count <= hardLimit {
 		return deduplicateMessages(msgs)
 	}
 
 	// 超过120条：去重后再采样
 	deduped := deduplicateMessages(msgs)
-	if len(deduped) <= hotPeriodSoftLimit {
+	if len(deduped) <= softLimit {
 		return deduped
 	}
-	return sampleMessages(deduped, hotPeriodSoftLimit)
+	return sampleMessages(deduped, softLimit)
 }
 
 // deduplicateMessages 合并连续短句，过滤低信息量消息
@@ -201,8 +189,7 @@ func pickHottest(segments []ChatSegment) *HotPeriod {
 	}
 
 	return &HotPeriod{
-		Start:    best.Start,
-		End:      best.End,
-		Messages: best.Messages,
+		Start: best.Start,
+		End:   best.End,
 	}
 }

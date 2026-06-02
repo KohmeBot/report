@@ -1,0 +1,31 @@
+{{define "quality"}}
+<div class="card b-grape">
+  <span class="tab t-grape"><span class="ico">🔬</span>群聊质量</span>
+  {{with .}}
+    {{if or (hasAny .Title) (hasAny .Subtitle)}}
+    <div class="q-banner">
+      {{if hasAny .Title}}<span class="qt">{{.Title}}</span>{{end}}
+      {{if hasAny .Subtitle}}<span class="qsub">{{.Subtitle}}</span>{{end}}
+    </div>
+    {{end}}
+    {{range .Dimensions}}
+    <div class="dim">
+      <div class="dim-head"><span class="dim-name">{{.Name}}</span><span class="dim-pct">{{pct .Percentage}}%</span></div>
+      <div class="dim-track"><div class="dim-fill" style="width:{{pct .Percentage}}%"></div></div>
+      {{if hasAny .Comment}}<div class="dim-comment">{{.Comment}}</div>{{end}}
+    </div>
+    {{end}}
+    {{if hasAny .Summary}}
+    <div class="ai-summary">
+      {{avatar .AIUser 38}}
+      <div>
+        <div class="ai-name">{{avatarName .AIUser}} · AI 锐评</div>
+        <div class="bubble">{{.Summary}}</div>
+      </div>
+    </div>
+    {{end}}
+  {{else}}
+    {{template "empty" "今天还没有群聊质量分析~"}}
+  {{end}}
+</div>
+{{end}}

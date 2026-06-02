@@ -13,6 +13,10 @@ type Config struct {
 	ChromeWs string `yaml:"chrome_ws"`
 	// 在生成时是否开启深度思考,会加大token使用
 	Thinking bool `yaml:"thinking"`
+	// 是否开启联网搜索
+	Online bool `yaml:"online"`
+	// 日报标题
+	Title string `yaml:"title"`
 }
 
 func (c Config) ChromeAddr() string {

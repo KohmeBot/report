@@ -1,0 +1,23 @@
+{{define "topics"}}
+<div class="card b-sky">
+  <span class="tab t-sky"><span class="ico">💡</span>今日话题</span>
+  {{if .}}
+    {{range $i, $t := .}}
+    <div class="topic">
+      <div class="topic-head">
+        <div class="topic-no">{{if $t.Index}}{{$t.Index}}{{else}}{{add1 $i}}{{end}}</div>
+        <div class="topic-title">{{$t.Topic}}</div>
+      </div>
+      {{if $t.Contributors}}
+      <div class="topic-contrib">
+        {{range $t.Contributors}}{{userChip .}}{{end}}
+      </div>
+      {{end}}
+      {{if hasAny $t.Detail}}<div class="topic-detail">{{detail $t.Detail $t.Contributors}}</div>{{end}}
+    </div>
+    {{end}}
+  {{else}}
+    {{template "empty" "今天群里静悄悄,没有热门话题~"}}
+  {{end}}
+</div>
+{{end}}

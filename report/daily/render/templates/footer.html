@@ -1,0 +1,9 @@
+{{define "footer"}}
+<div class="footer">
+  <div class="stamp-foot">
+    <div class="ft-main">🖍️ 由 {{if hasAny .GeneratedBy}}{{.GeneratedBy}}{{else}}群日报小助手{{end}} 生成</div>
+    {{if hasAny .GeneratedAt}}<div class="ft-sub">生成于 {{.GeneratedAt}}</div>{{end}}
+  </div>
+  <div class="hearts">♡ ✦ ♡ ✦ ♡</div>
+</div>
+{{end}}

@@ -1,0 +1,24 @@
+{{define "portraits"}}
+<div class="card b-grape">
+  <span class="tab t-grape"><span class="ico">🎭</span>群友画像</span>
+  {{if .}}
+  <div class="portraits">
+    {{range .}}
+    <div class="portrait"><div class="portrait-inner">
+      {{if hasAny .Title}}<span class="stamp">{{.Title}}</span>{{end}}
+      <div class="p-top">
+        {{avatar .User 42}}
+        <div>
+          <div class="p-name">{{avatarName .User}}</div>
+          {{if hasAny .Mbti}}<span class="p-mbti">{{.Mbti}}</span>{{end}}
+        </div>
+      </div>
+      {{if hasAny .Reason}}<div class="p-reason">{{.Reason}}</div>{{end}}
+    </div></div>
+    {{end}}
+  </div>
+  {{else}}
+  {{template "empty" "今天还没有群友画像~"}}
+  {{end}}
+</div>
+{{end}}

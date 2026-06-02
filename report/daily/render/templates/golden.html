@@ -1,0 +1,20 @@
+{{define "golden"}}
+<div class="card b-pink">
+  <span class="tab t-pink"><span class="ico">💬</span>群友金句</span>
+  {{if .}}
+    {{range $i, $g := .}}
+    <div class="quote {{if eq (mod $i 2) 0}}left{{else}}right{{end}}">
+      {{avatar $g.Sender 38}}
+      <div class="q-body">
+        <div class="q-name">{{avatarName $g.Sender}}</div>
+        <div class="bubble">{{$g.Content}}</div>
+        {{if hasAny $g.Time}}<div class="q-meta">🕐 {{$g.Time}}</div>{{end}}
+        {{if hasAny $g.Reason}}<div class="q-reason">✨ 入选理由:{{$g.Reason}}</div>{{end}}
+      </div>
+    </div>
+    {{end}}
+  {{else}}
+    {{template "empty" "今天还没有评选出金句~"}}
+  {{end}}
+</div>
+{{end}}

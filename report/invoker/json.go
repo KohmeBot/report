@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/kohmebot/chatai/chatai/chataisdk"
+	"github.com/kohmebot/chatai/chatai/model"
 	"github.com/sirupsen/logrus"
 	"reflect"
 	"strings"
@@ -27,7 +28,14 @@ func NewJsonInvoker(invoker *chataisdk.ChatAIInvoker, system string, online bool
 }
 
 func (i *JsonInvoker) DoRequest(req string, val any) error {
-	largeModel, err := i.invoker.NewModel(i.system, i.online, i.thinking, true)
+	var largeModel model.LargeModel
+	var err error
+	if i.system == "" {
+		largeModel, err = i.invoker.NewDefaultModel(i.online, i.thinking, true)
+	} else {
+		largeModel, err = i.invoker.NewModel(i.system, i.online, i.thinking, true)
+	}
+
 	if err != nil {
 		return err
 	}
