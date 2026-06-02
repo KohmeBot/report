@@ -82,16 +82,6 @@ func valid(val any) error {
 
 	v := reflect.ValueOf(val)
 
-	if v.CanInterface() {
-		ip, ok := v.Interface().(interface{ IsEmpty() bool })
-		if ok {
-			if ip.IsEmpty() {
-				return fmt.Errorf("val is empty")
-			}
-			return nil
-		}
-	}
-
 	// val 必须是指针类型
 	if v.Kind() != reflect.Ptr {
 		return fmt.Errorf("val must be a pointer")
@@ -104,6 +94,17 @@ func valid(val any) error {
 }
 
 func validateValue(v reflect.Value, fieldName string) error {
+
+	if v.CanInterface() {
+		ip, ok := v.Interface().(interface{ IsEmpty() bool })
+		if ok {
+			if ip.IsEmpty() {
+				return fmt.Errorf("val is empty")
+			}
+			return nil
+		}
+	}
+
 	switch v.Kind() {
 	case reflect.String:
 		if v.String() == "" {
