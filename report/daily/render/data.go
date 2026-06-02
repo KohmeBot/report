@@ -25,6 +25,10 @@ type User struct {
 	AvatarBase64 string // 用户头像的Base64
 }
 
+func (u *User) IsEmpty() bool {
+	return u.UserID == 0
+}
+
 func (u *User) MarshalJSON() ([]byte, error) {
 	return json.Marshal(u.UserID)
 }

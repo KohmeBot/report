@@ -5,8 +5,6 @@ import "strings"
 type Config struct {
 	// 定时发送的群
 	SendGroups []int64 `yaml:"send_groups"`
-	// 是否重新生成主题
-	RegenTheme bool `yaml:"regen_theme"`
 	// 是否纯文本
 	OnlyText bool `yaml:"only_text"`
 	// ChromeWs 地址,用于渲染图片，如果地址为空，则使用纯文本生成

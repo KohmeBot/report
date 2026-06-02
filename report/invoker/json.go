@@ -55,14 +55,15 @@ func (i *JsonInvoker) DoRequest(req string, val any) error {
 		res = strings.TrimSuffix(res, "```")
 
 		err = json.Unmarshal([]byte(res), val)
-		if err != nil {
-			return err
+
+		if err == nil {
+			// 使用反射检查val是否有空的值，如果有则重试
+			err = valid(val)
+			if err == nil {
+				return nil
+			}
 		}
 
-		// 使用反射检查val是否有空的值，如果有则重试
-		if err = valid(val); err == nil {
-			return nil
-		}
 		logrus.Errorf("json validation error: %v", err)
 		retry++
 		if retry >= 3 {
@@ -80,6 +81,16 @@ func valid(val any) error {
 	}
 
 	v := reflect.ValueOf(val)
+
+	if v.CanInterface() {
+		ip, ok := v.Interface().(interface{ IsEmpty() bool })
+		if ok {
+			if ip.IsEmpty() {
+				return fmt.Errorf("val is empty")
+			}
+			return nil
+		}
+	}
 
 	// val 必须是指针类型
 	if v.Kind() != reflect.Ptr {
