@@ -5,8 +5,6 @@ import (
 	"context"
 	"embed"
 	"fmt"
-	"github.com/chromedp/cdproto/page"
-	"github.com/chromedp/chromedp"
 	"html"
 	"html/template"
 	"io"
@@ -14,6 +12,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/chromedp/cdproto/page"
+	"github.com/chromedp/chromedp"
 )
 
 //go:embed templates/*.html
@@ -108,6 +109,7 @@ var funcMap = template.FuncMap{
 	"avatar":     avatarHTML,   // 任意尺寸头像（img 或首字母兜底）
 	"userChip":   userChipHTML, // 行内「头像+昵称」胶囊
 	"detail":     detailHTML,   // 话题详情：替换 [用户ID] 为胶囊
+	"reason":     reasonHTML,   // 金句原因：替换 [用户ID] 为胶囊
 	"mod":        func(a, b int) int { return a % b },
 	"add1":       func(i int) int { return i + 1 },
 	"maxCount":   maxCount,  // 柱状图最大值
@@ -205,6 +207,29 @@ func userChipHTML(u *User) template.HTML {
 		av, html.EscapeString(displayName(u))))
 }
 
+func userReasonChipHTML(u *User) template.HTML {
+	var av string
+
+	if src := normalizeAvatar(u.AvatarBase64); src != "" {
+		av = fmt.Sprintf(
+			`<img class="q-user-av" src="%s" alt="">`,
+			html.EscapeString(src),
+		)
+	} else {
+		av = fmt.Sprintf(
+			`<span class="q-user-av q-user-fb" style="background:%s">%s</span>`,
+			avatarColor(u),
+			html.EscapeString(firstRune(displayName(u))),
+		)
+	}
+
+	return template.HTML(fmt.Sprintf(
+		`<span class="q-user">%s<span class="q-user-name">%s</span></span>`,
+		av,
+		html.EscapeString(displayName(u)),
+	))
+}
+
 var refRe = regexp.MustCompile(`\[(\d+)\]`)
 
 // detailHTML 把话题详情里的 [用户ID] 替换成用户胶囊，其余文本做转义。
@@ -227,6 +252,29 @@ func detailHTML(detail string, contributors []*User) template.HTML {
 		last = loc[1]
 	}
 	b.WriteString(html.EscapeString(detail[last:]))
+	return template.HTML(b.String())
+}
+
+// reasonHTML 把reason里的 [用户ID] 替换成用户胶囊，其余文本做转义。
+func reasonHTML(reason string, contributors []*User) template.HTML {
+	m := make(map[int64]*User, len(contributors))
+	for _, u := range contributors {
+		m[u.UserID] = u
+	}
+	var b strings.Builder
+	last := 0
+	for _, loc := range refRe.FindAllStringSubmatchIndex(reason, -1) {
+		b.WriteString(html.EscapeString(reason[last:loc[0]]))
+		id, _ := strconv.ParseInt(reason[loc[2]:loc[3]], 10, 64)
+		if u, ok := m[id]; ok {
+			b.WriteString(string(userReasonChipHTML(u)))
+		} else {
+			// 找不到对应用户就保留原文（已转义）
+			b.WriteString(html.EscapeString(reason[loc[0]:loc[1]]))
+		}
+		last = loc[1]
+	}
+	b.WriteString(html.EscapeString(reason[last:]))
 	return template.HTML(b.String())
 }
 

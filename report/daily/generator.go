@@ -2,12 +2,14 @@ package daily
 
 import (
 	"fmt"
-	"github.com/kohmebot/report/report/daily/render"
 	"html/template"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/kohmebot/report/report/daily/render"
 
 	"github.com/kohmebot/chatai/chatai/chataisdk"
 	"github.com/kohmebot/plugin/v2"
@@ -112,6 +114,27 @@ func (g *Generator) fullRenderUsers(group int64, data *render.ReportData) {
 	}
 	for _, datum := range data.GoldenData {
 		datum.Sender.Full(ctx, group)
+		datum.Contributors = make([]*render.User, 0)
+
+		// 提取 datum.Content 中类似 [123456] 的文本，解析为 user 填入 datum.Contributors 中，并去重
+		re := regexp.MustCompile(`\[(\d+)\]`)
+		matches := re.FindAllStringSubmatch(datum.Content, -1)
+
+		existing := make(map[int64]bool)
+		for _, c := range datum.Contributors {
+			existing[c.UserID] = true
+		}
+
+		for _, match := range matches {
+			uid, err := strconv.ParseInt(match[1], 10, 64)
+			if err != nil || existing[uid] {
+				continue
+			}
+			existing[uid] = true
+			user := &render.User{UserID: uid}
+			user.Full(ctx, group)
+			datum.Contributors = append(datum.Contributors, user)
+		}
 	}
 
 	data.GroupQuality.AIUser = &render.User{

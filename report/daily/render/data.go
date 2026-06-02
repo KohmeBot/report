@@ -5,11 +5,12 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	zero "github.com/wdvxdr1123/ZeroBot"
 	"html/template"
 	"image"
 	"image/png"
 	"net/http"
+
+	zero "github.com/wdvxdr1123/ZeroBot"
 )
 
 type ReportData struct {
@@ -112,10 +113,11 @@ type UserItem struct {
 }
 
 type GoldenItem struct {
-	Content string `json:"content"` // 金句内容 整体渲染成头像+昵称+气泡
-	Sender  *User  `json:"sender"`  // 发送者 渲染成头像+昵称
-	Reason  string `json:"reason"`  // 评选原因，AI锐评
-	Time    string `json:"time"`    // 发送时间
+	Content      string  `json:"content"` // 金句内容 整体渲染成头像+昵称+气泡
+	Sender       *User   `json:"sender"`  // 发送者 渲染成头像+昵称
+	Reason       string  `json:"reason"`  // 评选原因，AI锐评
+	Time         string  `json:"time"`    // 发送时间
+	Contributors []*User `json:"-"`
 }
 
 type GroupQuality struct {
