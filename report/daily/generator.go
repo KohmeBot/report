@@ -174,7 +174,7 @@ func (g *Generator) InvokeAi(prompts Prompts) (topics []*render.TopicItem, users
 	if err = iv.DoRequest(prompts.GoldenPrompt, &goldens); err != nil {
 		return
 	}
-	if err = iv.DoRequest(prompts.QualityPrompt, quality); err != nil {
+	if err = iv.DoRequest(prompts.QualityPrompt, &quality); err != nil {
 		return
 	}
 
