@@ -5,11 +5,11 @@ import (
 	"context"
 	"embed"
 	"fmt"
+	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/chromedp"
 	"html"
 	"html/template"
 	"io"
-	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -71,9 +71,6 @@ func RenderToImage(data *ReportData, chromeAddr string, opts ...Option) ([]byte,
 		return nil, err
 	}
 
-	htmlData = url.PathEscape(htmlData)
-
-	// 一分钟超时
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
 	defer cancel()
 
@@ -81,32 +78,26 @@ func RenderToImage(data *ReportData, chromeAddr string, opts ...Option) ([]byte,
 		ctx, cancel = chromedp.NewRemoteAllocator(ctx, chromeAddr)
 		defer cancel()
 	}
-
-	// 2. chromedp截图
 	ctx, cancel = chromedp.NewContext(ctx)
 	defer cancel()
 
-	navigate := "data:text/html;charset=utf-8," + htmlData
-
-	//logrus.Infof("navigate: %s", navigate)
-
 	var imgBuf []byte
 	err = chromedp.Run(ctx,
-		chromedp.EmulateViewport(
-			440,
-			1000,
-			chromedp.EmulateScale(3),
-		),
-		chromedp.Navigate(navigate),
-		// 等待内容渲染完成
+		chromedp.EmulateViewport(440, 1000, chromedp.EmulateScale(3)),
+		chromedp.Navigate("about:blank"),
+		chromedp.ActionFunc(func(ctx context.Context) error {
+			frameTree, err := page.GetFrameTree().Do(ctx)
+			if err != nil {
+				return err
+			}
+			return page.SetDocumentContent(frameTree.Frame.ID, htmlData).Do(ctx)
+		}),
 		chromedp.WaitReady("body"),
-		// 截取card元素，不是整个页面
 		chromedp.FullScreenshot(&imgBuf, 100),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("截图失败: %w", err)
 	}
-
 	return imgBuf, nil
 }
 
