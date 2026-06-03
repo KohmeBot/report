@@ -162,12 +162,19 @@ body {
 .portrait:nth-child(4n)   .portrait-inner{ transform:rotate(-.8deg); }
 .p-top { display:flex; align-items:center; margin-bottom:7px; }
 .p-top .gd-av { width:42px; height:42px; margin-right:8px; flex:none; }
-.p-name { font-size:14px; font-weight:900; line-height:1.1; color:#3A2F26; }
+.p-meta { flex:1; min-width:0; }
+.p-name { font-size:14px; font-weight:900; line-height:1.15; color:#3A2F26;
+    word-break:break-all; }
 .p-mbti { display:inline-block; margin-top:3px; font-size:9.5px; font-weight:800; color:#fff;
   background:#A78BE0; border-radius:8px; padding:1px 6px; letter-spacing:.5px; }
-.stamp { position:absolute; top:6px; right:5px; transform:rotate(8deg); color:#D8443B; font-size:11px;
-  font-weight:900; padding:2px 7px; letter-spacing:.5px; border:2px solid #D8443B; border-radius:6px;
-  box-shadow:0 0 0 2px #FFF8EE, 0 0 0 3.6px #D8443B; opacity:.92; max-width:46%; }
+.stamp {
+    flex:none; align-self:flex-start;  /* 永远钉在顶部那个角 */
+    margin-left:auto; transform:rotate(6deg); white-space:nowrap;
+    color:#D8443B; font-size:11px; font-weight:900; padding:2px 7px;
+    letter-spacing:.5px; border:2px solid #D8443B; border-radius:6px;
+    box-shadow:0 0 0 2px #FFF8EE, 0 0 0 3.6px #D8443B; opacity:.92;
+}
+
 .p-reason { font-size:11.5px; line-height:1.65; color:#5a4d40; }
 
 /* ============ 群友金句 ============ */

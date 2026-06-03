@@ -5,13 +5,14 @@
   <div class="portraits">
     {{range .}}
     <div class="portrait"><div class="portrait-inner">
-      {{if hasAny .Title}}<span class="stamp">{{.Title}}</span>{{end}}
+
       <div class="p-top">
         {{avatar .User 42}}
-        <div>
+        <div class="p-meta">
           <div class="p-name">{{avatarName .User}}</div>
           {{if hasAny .Mbti}}<span class="p-mbti">{{.Mbti}}</span>{{end}}
         </div>
+        {{if hasAny .Title}}<span class="stamp">{{.Title}}</span>{{end}}
       </div>
       {{if hasAny .Reason}}<div class="p-reason">{{.Reason}}</div>{{end}}
     </div></div>
