@@ -1,0 +1,1 @@
+Prompt灵感来自 [astrbot_plugin](https://github.com/SXP-Simon/astrbot_plugin_qq_group_daily_analysis)

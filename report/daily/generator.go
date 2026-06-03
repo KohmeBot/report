@@ -188,7 +188,7 @@ func (g *Generator) buildRenderData(title string, group int64, groupName string,
 
 		reportData.GoldenData = append(reportData.GoldenData, &render.GoldenItem{
 			Content: msg.Content,
-			Sender:  golden.Sender,
+			Sender:  msg.UserID,
 			Reason:  golden.Reason,
 			Time:    msg.CreatedAt.Format("15:04"),
 		})
