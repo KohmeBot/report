@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/base64"
 	"fmt"
-	"html/template"
 	"image"
 	"image/png"
 	"net/http"
@@ -138,7 +137,7 @@ func (g *Generator) GenerateReport(title string, group int64, groupName string, 
 
 func (g *Generator) buildRenderData(title string, group int64, groupName string, data *AggregateData, res *AIResult) *render.ReportData {
 	report := &render.DailyReport{
-		Title:     template.HTML(title),
+		Title:     title,
 		GroupName: groupName,
 		GroupID:   strconv.FormatInt(group, 10),
 		Date:      data.Date.Format("2006年 01月 02日"),

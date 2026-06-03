@@ -1,9 +1,5 @@
 package render
 
-import (
-	"html/template"
-)
-
 type ReportData struct {
 	Report       *DailyReport  // 日常数据
 	Topics       []*TopicItem  // 话题数据
@@ -13,10 +9,10 @@ type ReportData struct {
 }
 
 type DailyReport struct {
-	Title     template.HTML `json:"title"` // 群聊标题
-	GroupName string        `json:"group_name"`
-	GroupID   string        `json:"group_id"`
-	Date      string        `json:"date"` // YYYY年-MM月-DD日
+	Title     string `json:"title"` // 群聊标题
+	GroupName string `json:"group_name"`
+	GroupID   string `json:"group_id"`
+	Date      string `json:"date"` // YYYY年-MM月-DD日
 
 	// ── Header stats ──────────────────────────
 	Stats Stats `json:"stats"`

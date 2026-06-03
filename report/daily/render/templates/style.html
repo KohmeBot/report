@@ -158,19 +158,56 @@ body {
 .tab.t-grape{ background:var(--grape); } .tab.t-pink{ background:var(--pink); }
 .tab .ico { margin-right:5px; filter:none; }
 
-/* ============ 头部标题 ============ */
-.hero { text-align:center; margin:6px 0 24px; position:relative; z-index: 2;}
-.hero .ribbon { display:inline-block; transform:rotate(-3deg); position:relative; }
-.hero h1 { font-size:32px; line-height:1.2; font-weight:900; margin:0; color:#3A2F26;
-  position:relative; z-index:2; padding:2px 6px; text-shadow:2px 2px 0 #fff; }
-.hero h1 .hl { background:linear-gradient(transparent 54%, var(--yellow) 54% 92%, transparent 92%); padding:0 2px; }
-.hero h1 .c1{color:var(--coral-d);} .hero h1 .c2{color:var(--mint-d);}
-.hero h1 .c3{color:var(--sky-d);} .hero h1 .c4{color:var(--pink-d);}
-.hero .date { display:inline-block; margin-top:12px; font-size:12px; font-weight:700; color:#6B5D4F;
-  background:#FFF8EE; border:2.2px solid var(--ink); border-radius:20px; padding:3px 13px 4px;
-  transform:rotate(1.6deg); box-shadow:1.5px 2px 0 rgba(74,58,46,.15); filter:var(--wob); }
-.hero .gname { display:block; font-size:13px; color:#9a7da9; margin-top:7px; font-weight:700; }
-.doodle-star { position:absolute; font-size:20px; }
+/* ============ 头部标题（纯文本友好 · 不规矩多彩版） ============ */
+.hero{ text-align:center; margin:10px 0 26px; position:relative; z-index:2; }
+
+/* 标题外壳：整体微倾，背后斜扫一道蜡笔高亮 */
+.hero .ribbon{
+    display:inline-block; position:relative; padding:6px 16px 12px;
+    transform:rotate(-2deg);
+}
+.hero .ribbon::before{                 /* 黄色蜡笔高亮（手抖、歪歪的椭圆） */
+    content:""; position:absolute; z-index:0;
+    left:2px; right:2px; top:40%; bottom:10%;
+    background:var(--yellow);
+    border-radius:48% 52% 60% 40% / 64% 56% 44% 36%;
+    transform:rotate(-1.4deg) scale(1.05);
+    filter:var(--wob); opacity:.9;
+}
+.hero .ribbon::after{                  /* 右上角小星星贴纸 */
+    content:""; position:absolute; right:-12px; top:-14px; width:28px; height:28px; z-index:3;
+    background:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='28' height='28'><path d='M14 1 L17 11 L27 11 L19 17 L22 27 L14 21 L6 27 L9 17 L1 11 L11 11 Z' fill='%23FFD23F' stroke='%234A3A2E' stroke-width='2' stroke-linejoin='round'/></svg>") no-repeat center/contain;
+    transform:rotate(8deg);
+}
+
+.hero h1{
+    margin:0; position:relative; z-index:2;
+    font-size:38px; line-height:1.18; font-weight:900; letter-spacing:.5px;
+    color:var(--coral-d);                /* 没有 JS 时的整体颜色 */
+    -webkit-text-stroke:2px var(--ink);  /* 蜡笔描边 */
+    paint-order:stroke fill;             /* 描边在下、字色在上，字才不糊 */
+    text-shadow:2.5px 3px 0 rgba(74,58,46,.20);  /* 立体抬起感 */
+    filter:var(--wob);                   /* 整条手抖 */
+}
+
+/* 每个字一片（由下方脚本注入 .ch）：旋转 + 上下跳 + 轮转配色 */
+.hero h1 .ch{
+    display:inline-block; position:relative; padding:0 1.5px;
+    --r:0deg; --y:0px;
+    transform:rotate(var(--r)) translateY(var(--y));
+}
+.hero h1 .ch:nth-child(6n+1){ color:var(--coral-d); }
+.hero h1 .ch:nth-child(6n+2){ color:var(--mint-d); }
+.hero h1 .ch:nth-child(6n+3){ color:var(--sky-d); }
+.hero h1 .ch:nth-child(6n+4){ color:var(--pink-d); }
+.hero h1 .ch:nth-child(6n+5){ color:var(--grape-d); }
+.hero h1 .ch:nth-child(6n)  { color:#D99A00; }
+
+/* 日期 / 群名（沿用你原本的样式） */
+.hero .date{ display:inline-block; margin-top:14px; font-size:12px; font-weight:700; color:#6B5D4F;
+    background:#FFF8EE; border:2.2px solid var(--ink); border-radius:20px; padding:3px 13px 4px;
+    transform:rotate(1.6deg); box-shadow:1.5px 2px 0 rgba(74,58,46,.15); filter:var(--wob); }
+.hero .gname{ display:block; font-size:13px; color:#9a7da9; margin-top:9px; font-weight:700; }
 
 /* ============ 数据统计 ============ */
 .stats-grid { display:flex; flex-wrap:wrap; margin:-5px; }

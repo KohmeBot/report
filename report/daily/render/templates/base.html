@@ -7,6 +7,33 @@
 <title>{{with .Data.Report}}{{.GroupName}} · {{end}}群日报</title>
 {{template "style" .}}
 </head>
+<script>
+  (function(){
+    function rnd(i, salt){             // 基于索引的伪随机：每次渲染结果一致（适合导出图片）
+      var x = Math.sin((i + 1) * 12.9898 + salt * 78.233) * 43758.5453;
+      return x - Math.floor(x);
+    }
+    function splitTitle(h){
+      if(!h || h.querySelector('.ch')) return;          // 已处理则跳过
+      var chars = Array.from(h.textContent.trim());     // Array.from 正确处理中文/emoji
+      h.textContent = '';
+      chars.forEach(function(c, i){
+        if(c === ' '){ h.appendChild(document.createTextNode(' ')); return; }
+        var s = document.createElement('span');
+        s.className = 'ch';
+        s.textContent = c;
+        s.style.setProperty('--r', (rnd(i,1)*13 - 6.5).toFixed(1) + 'deg');  // -6.5°~6.5°
+        s.style.setProperty('--y', (rnd(i,2)*7  - 3.5).toFixed(1) + 'px');   // 上下 -3.5~3.5px
+        h.appendChild(s);
+      });
+    }
+    function run(){
+      document.querySelectorAll('.hero h1').forEach(splitTitle);
+    }
+    if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run);
+    else run();
+  })();
+</script>
 <body>
 <div class="page">
   {{template "header" .Data.Report}}
