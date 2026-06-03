@@ -114,7 +114,7 @@ type TimeStat struct {
 type AggregateData struct {
 	GroupMessages  []GroupMessage
 	GroupID        int64
-	Date           string
+	Date           time.Time
 	TotalMsg       int          // 总消息数
 	ActiveUsers    int          // 活跃用户数
 	TotalCharCount int          // 总字符数

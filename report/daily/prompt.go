@@ -1,7 +1,27 @@
 package daily
 
+const commonHeader = `
+你将先看到一段聊天记录,然后是一个具体分析任务。只返回纯 JSON:不要 markdown 代码块,不要任何解释性文字。
+
+## 聊天记录格式
+每条消息一行:[消息ID] [时间] [用户ID] [行为]: 内容
+- 消息ID 是消息唯一编号,可用于精确引用
+- 引用用户统一用 [用户ID] 格式(如 [123456]),不要写昵称
+
+## 数据真实性铁律(最高优先级,违反即视为任务失败)
+1. 只能使用下方聊天记录中真实出现的内容,严禁编造、推断或脑补任何不存在的发言、用户、时间或事件。
+2. 直接引用发言时必须与原文逐字一致,不得改写、合并、补全或润色。
+3. 只能引用记录中真实存在的用户ID,严禁编造ID或张冠李戴。
+4. 符合条件的内容不足时,宁可少返回或返回 [],绝不凑数、注水或虚构。
+5. 事实(谁说了什么、话题、统计)必须完全来自记录;只有点评的语气和观点可体现你的人设,但不得建立在虚构事实上。
+
+## 聊天记录(仅可使用以下真实内容)
+%s
+
+`
+
 const topicPrompt = `
-请分析接下来提供的群聊记录，提取出最多 5 个主要话题。根据实际聊天内容提取所有最有意义的话题。
+请分析我上面提供的群聊记录，提取出最多 5 个主要话题。根据实际聊天内容提取所有最有意义的话题。
 
 ## 对于每个话题，请提供：
 
@@ -20,12 +40,6 @@ const topicPrompt = `
 - 忽略无意义的闲聊、灌水、单纯的表情回复等
 - 优先选择讨论深度较深、参与人数较多的话题
 - 如果消息太少或没有明确话题，可以返回空数组 []
-
-群聊记录格式: [时间] (用户ID) [行为]: 内容
-
-群聊记录：
-%s
-
 ---
 
 ## 重要：必须返回标准 JSON 格式
@@ -45,8 +59,13 @@ const topicPrompt = `
   }
 ]
 
-注意：返回的内容必须是纯 JSON，不要包含 markdown 代码块标记或其他格式。
 `
+
+type TopicResult struct {
+	Topic        string  `json:"topic"`
+	Contributors []int64 `json:"contributors"`
+	Detail       string  `json:"detail"`
+}
 
 const userPrompt = `
 请为以下群友分配合适的称号和 MBTI 类型。
@@ -89,8 +108,15 @@ const userPrompt = `
 注意：请以纯 JSON 格式返回，不要包含 markdown 代码块标记。
 `
 
+type UserResult struct {
+	User   int64  `json:"user"`
+	Title  string `json:"title"`
+	Mbti   string `json:"mbti"`
+	Reason string `json:"reason"`
+}
+
 const goldenPrompt = `
-请从以下群聊记录中挑选出5句最具冲击力、最令人惊叹的「金句」。
+请从上面的群聊记录中挑选出5句最具冲击力、最令人惊叹的「金句」。
 
 ## 金句标准：
 
@@ -99,7 +125,7 @@ const goldenPrompt = `
 
 ## 对于每个金句，请提供：
 
-1. 原文内容（完整保留发言细节）
+1. 原文的消息ID
 2. 发言人用户ID（必须严格使用消息记录中提供的 [用户ID]）
 3. 选择理由（具体说明其「逆天」之处，如逻辑颠覆点/脑洞角度/反差感/争议话题元素）
 
@@ -109,28 +135,27 @@ const goldenPrompt = `
   - 发情、性压抑话题 > 争议话题 > 元素级 > 颠覆认知级 > 逻辑跳脱级 > 趣味调侃级
   - 剔除单纯玩梗或网络热词堆砌的普通发言
 - 用户引用：在选择理由（reason）中，如果提到了具体用户，请使用 '[用户ID]' 的格式来指代（例如 '[123456]'）。不要只写昵称。我们会自动渲染头像。
-- 身份对齐：返回的 'sender' 字段必须是 '用户ID' 格式（例如 '123456'）。我们会根据 ID 自动还原昵称和头像。
+- 身份对齐：返回的 'sender' 字段必须是用户ID。我们会根据 ID 自动还原昵称和头像。
 
-## 群聊记录格式: [时间] (用户ID) [行为]: 内容
-
-## 群聊记录：
-
-%s
 
 ---
 
 ### 返回格式示例：
 [
 {
-"content": "金句原文",
+"msgId": (int)原文对应的消息ID,
 "sender": 123456789,
 "reason": "这句话太逆天了，尤其是对 [987654321] 的逻辑降维打击。",
-"time": "发送时间"
 }
 ]
 
-注意：返回的内容必须是纯 JSON，不要包含 markdown 代码块标记或其他格式。
 `
+
+type GoldenResult struct {
+	MsgId  int64  `json:"msgId"`
+	Sender int64  `json:"sender"`
+	Reason string `json:"reason"`
+}
 
 const qualityPrompt = `
 请分析以下群聊记录，输出一份"聊天质量锐评"。
@@ -166,3 +191,21 @@ const qualityPrompt = `
 群聊记录：
 %s
 `
+
+type QualityResult struct {
+	Title      string `json:"title"`
+	Subtitle   string `json:"subtitle"`
+	Dimensions []struct {
+		Name       string  `json:"name"`
+		Percentage float64 `json:"percentage"`
+		Comment    string  `json:"comment"`
+	} `json:"dimensions"`
+	Summary string `json:"summary"`
+}
+
+type AIResult struct {
+	Topics     []TopicResult  `json:"topics"`
+	Goldens    []GoldenResult `json:"goldens"`
+	UserResult []UserResult   `json:"userResult"`
+	Qualities  QualityResult  `json:"qualities"`
+}

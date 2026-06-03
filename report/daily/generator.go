@@ -1,9 +1,13 @@
 package daily
 
 import (
+	"bytes"
+	"encoding/base64"
 	"fmt"
 	"html/template"
-	"regexp"
+	"image"
+	"image/png"
+	"net/http"
 	"slices"
 	"strconv"
 	"strings"
@@ -52,12 +56,19 @@ func (g *Generator) botNickName() string {
 	return "bot"
 }
 
+func (g *Generator) botUid() int64 {
+	var uid int64
+	g.env.UseBot(func(ctx *zero.Ctx) {
+		uid = ctx.GetLoginInfo().Get("user_id").Int()
+	})
+	return uid
+}
+
 func (g *Generator) BuildPrompt(group int64, t time.Time) (Prompts, *AggregateData, error) {
-	date := t.Format("2006-01-02")
 
 	// 生成日报
 	aggregator := NewAggregator(g.db, g.invoker, g.thinking)
-	report, ump, err := aggregator.Aggregate(group, date)
+	report, ump, err := aggregator.Aggregate(group, t, 24*time.Hour)
 	if err != nil {
 		return Prompts{}, nil, fmt.Errorf("聚合失败: %w", err)
 	}
@@ -96,55 +107,6 @@ func (g *Generator) makeHighlightTime(hotPeriod HotPeriod) string {
 	return fmt.Sprintf("%s~%s", start, end)
 }
 
-func (g *Generator) fullRenderUsers(group int64, data *render.ReportData) {
-	var ctx *zero.Ctx
-	g.env.UseBot(func(c *zero.Ctx) {
-		ctx = c
-	})
-	if ctx == nil {
-		return
-	}
-	for _, topic := range data.Topics {
-		for _, contributor := range topic.Contributors {
-			contributor.Full(ctx, group)
-		}
-	}
-	for _, datum := range data.UserData {
-		datum.User.Full(ctx, group)
-	}
-	for _, datum := range data.GoldenData {
-		datum.Sender.Full(ctx, group)
-		datum.Contributors = make([]*render.User, 0)
-
-		// 提取 datum.Reason 中类似 [123456] 的文本，解析为 user 填入 datum.Contributors 中，并去重
-		re := regexp.MustCompile(`\[(\d+)\]`)
-		matches := re.FindAllStringSubmatch(datum.Reason, -1)
-
-		existing := make(map[int64]bool)
-		for _, c := range datum.Contributors {
-			existing[c.UserID] = true
-		}
-
-		for _, match := range matches {
-			uid, err := strconv.ParseInt(match[1], 10, 64)
-			if err != nil || existing[uid] {
-				continue
-			}
-			existing[uid] = true
-			user := &render.User{UserID: uid}
-			user.Full(ctx, group)
-			datum.Contributors = append(datum.Contributors, user)
-		}
-	}
-
-	data.GroupQuality.AIUser = &render.User{
-		UserID: ctx.GetLoginInfo().Get("user_id").Int(),
-	}
-	data.GroupQuality.AIUser.Full(ctx, group)
-	data.GroupQuality.AIUser.Nickname = g.botNickName()
-
-}
-
 func (g *Generator) GenerateReport(title string, group int64, groupName string, t time.Time) (Report, error) {
 
 	prompts, data, err := g.BuildPrompt(group, t)
@@ -155,16 +117,31 @@ func (g *Generator) GenerateReport(title string, group int64, groupName string, 
 		return Report{}, nil
 	}
 
-	topics, users, goldens, quality, err := g.InvokeAi(prompts)
+	res, err := g.InvokeAi(prompts)
 	if err != nil {
 		return Report{}, fmt.Errorf("生成日报失败: %w", err)
 	}
 
+	renderData := g.buildRenderData(title, group, groupName, data, &res)
+
+	imgBytes, err := render.RenderToImage(renderData, g.chromeAddr,
+		render.WithGeneratedBy(g.botNickName()),
+		render.WithGeneratedAt(time.Now().Format("2006-01-02 15:04:05")),
+		render.WithUserDataGetter(g.getUserDataFunc(group)),
+	)
+
+	return Report{
+		Text:  "", // TODO 生成图片失败时，fallback为文本
+		Image: imgBytes,
+	}, err
+}
+
+func (g *Generator) buildRenderData(title string, group int64, groupName string, data *AggregateData, res *AIResult) *render.ReportData {
 	report := &render.DailyReport{
-		Title:     template.HTML(title), // TODO
+		Title:     template.HTML(title),
 		GroupName: groupName,
 		GroupID:   strconv.FormatInt(group, 10),
-		Date:      t.Format("2006年 01月 02日"),
+		Date:      data.Date.Format("2006年 01月 02日"),
 		Stats: render.Stats{
 			TotalMessages:      data.TotalMsg,
 			ActiveUsers:        data.ActiveUsers,
@@ -177,49 +154,127 @@ func (g *Generator) GenerateReport(title string, group int64, groupName string, 
 
 	reportData := render.ReportData{
 		Report:       report,
-		Topics:       topics,
-		UserData:     users,
-		GoldenData:   goldens,
-		GroupQuality: quality,
+		Topics:       make([]*render.TopicItem, 0),
+		UserData:     make([]*render.UserItem, 0),
+		GoldenData:   make([]*render.GoldenItem, 0),
+		GroupQuality: nil,
 	}
 
-	g.fullRenderUsers(group, &reportData)
+	for i, topic := range res.Topics {
+		reportData.Topics = append(reportData.Topics, &render.TopicItem{
+			Index:        i + 1,
+			Topic:        topic.Topic,
+			Contributors: topic.Contributors,
+			Detail:       topic.Detail,
+		})
+	}
+	for _, user := range res.UserResult {
+		reportData.UserData = append(reportData.UserData, &render.UserItem{
+			User:   user.User,
+			Title:  user.Title,
+			Mbti:   user.Mbti,
+			Reason: user.Reason,
+		})
+	}
+	for _, golden := range res.Goldens {
+		// 找到原句
+		idx := slices.IndexFunc(data.GroupMessages, func(m GroupMessage) bool {
+			return m.MsgID == golden.MsgId
+		})
+		if idx == -1 {
+			continue
+		}
+		msg := data.GroupMessages[idx]
 
-	imgBytes, err := render.RenderToImage(&reportData, g.chromeAddr, render.WithGeneratedBy(g.botNickName()), render.WithGeneratedAt(time.Now().Format("2006-01-02 15:04:05")))
-
-	return Report{
-		Text:  "", // TODO 生成图片失败时，fallback为文本
-		Image: imgBytes,
-	}, err
+		reportData.GoldenData = append(reportData.GoldenData, &render.GoldenItem{
+			Content: msg.Content,
+			Sender:  golden.Sender,
+			Reason:  golden.Reason,
+			Time:    msg.CreatedAt.Format("15:04"),
+		})
+	}
+	reportData.GroupQuality = &render.GroupQuality{
+		Title:      res.Qualities.Title,
+		Subtitle:   res.Qualities.Subtitle,
+		Dimensions: make([]render.Dimension, 0),
+		Summary:    res.Qualities.Summary,
+		AIUser:     g.botUid(),
+	}
+	for _, d := range res.Qualities.Dimensions {
+		reportData.GroupQuality.Dimensions = append(reportData.GroupQuality.Dimensions, render.Dimension{
+			Name:       d.Name,
+			Percentage: d.Percentage,
+			Comment:    d.Comment,
+		})
+	}
+	return &reportData
 }
 
-func (g *Generator) InvokeAi(prompts Prompts) (topics []*render.TopicItem, users []*render.UserItem, goldens []*render.GoldenItem, quality *render.GroupQuality, err error) {
+func (g *Generator) getUserDataFunc(group int64) func(uid int64) (nickName string, avatar string) {
+	cache := map[int64][2]string{}
+	var selfId int64
+	return func(uid int64) (nickName string, avatar string) {
+		g.env.UseBot(func(ctx *zero.Ctx) {
+			if selfId == 0 {
+				selfId = ctx.GetLoginInfo().Get("user_id").Int()
+			}
+
+			data, ok := cache[uid]
+			if ok {
+				nickName, avatar = data[0], data[1]
+				return
+			}
+
+			nickName = ctx.GetGroupMemberInfo(group, uid, false).Get("card").String()
+			if nickName == "" {
+				nickName = ctx.GetStrangerInfo(uid, false).Get("nickname").String()
+			}
+
+			if uid == selfId {
+				nickName = g.botNickName()
+			}
+
+			resp, err := http.Get(fmt.Sprintf("https://q4.qlogo.cn/g?b=qq&nk=%d&s=%d", uid, 640))
+			if err != nil {
+				return
+			}
+			defer resp.Body.Close()
+			img, _, err := image.Decode(resp.Body)
+			if err != nil {
+				return
+			}
+
+			var buf bytes.Buffer
+
+			err = png.Encode(&buf, img)
+			if err != nil {
+				return
+			}
+
+			avatar = base64.StdEncoding.EncodeToString(buf.Bytes())
+
+			cache[uid] = [2]string{nickName, avatar}
+		})
+		return
+	}
+
+}
+
+func (g *Generator) InvokeAi(prompts Prompts) (res AIResult, err error) {
 	iv := invoker.NewJsonInvoker(g.invoker, "", g.online, g.thinking)
 
-	if err = iv.DoRequest(prompts.TopicPrompt, &topics); err != nil {
+	if err = iv.DoRequest(prompts.TopicPrompt, &res.Topics); err != nil {
 		return
 	}
-	if err = iv.DoRequest(prompts.UserPrompt, &users); err != nil {
+	if err = iv.DoRequest(prompts.GoldenPrompt, &res.Goldens); err != nil {
 		return
 	}
-	if err = iv.DoRequest(prompts.GoldenPrompt, &goldens); err != nil {
+	if err = iv.DoRequest(prompts.QualityPrompt, &res.Qualities); err != nil {
 		return
 	}
-	if err = iv.DoRequest(prompts.QualityPrompt, &quality); err != nil {
+	// user放在最后，让上面的可以吃到token cache
+	if err = iv.DoRequest(prompts.UserPrompt, &res.UserResult); err != nil {
 		return
-	}
-
-	if quality != nil {
-		// 倒序
-		slices.SortFunc(quality.Dimensions, func(a, b render.Dimension) int {
-			if a.Percentage < b.Percentage {
-				return -1
-			}
-			if a.Percentage > b.Percentage {
-				return 1
-			}
-			return 0
-		})
 	}
 
 	return
@@ -238,7 +293,9 @@ func (g *Generator) buildPrompt(r *AggregateData, ump map[int64]User) Prompts {
 	msgs := compressMessages(contentMessage(r.GroupMessages))
 	msgsText := formatMessages(msgs, ump)
 
-	prompts.TopicPrompt = fmt.Sprintf(topicPrompt, msgsText)
+	header := fmt.Sprintf(commonHeader, msgsText)
+
+	prompts.TopicPrompt = header + topicPrompt
 
 	users := r.UserStats
 	if len(users) > 8 {
@@ -254,9 +311,9 @@ func (g *Generator) buildPrompt(r *AggregateData, ump map[int64]User) Prompts {
 
 	prompts.UserPrompt = fmt.Sprintf(userPrompt, builder.String())
 
-	prompts.GoldenPrompt = fmt.Sprintf(goldenPrompt, msgsText)
+	prompts.GoldenPrompt = commonHeader + goldenPrompt
 
-	prompts.QualityPrompt = fmt.Sprintf(qualityPrompt, msgsText)
+	prompts.QualityPrompt = commonHeader + qualityPrompt
 
 	return prompts
 

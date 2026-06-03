@@ -22,36 +22,27 @@ func NewAggregator(db *gorm.DB, invoker *chataisdk.ChatAIInvoker, thinking bool)
 }
 
 // Aggregate 对指定群、指定日期做全量聚合，返回DailyReport
-func (a *Aggregator) Aggregate(groupID int64, date string) (*AggregateData, map[int64]User, error) {
+func (a *Aggregator) Aggregate(groupID int64, date time.Time, duration time.Duration) (*AggregateData, map[int64]User, error) {
 	now := time.Now()
 	defer func() {
 		latency := time.Since(now)
 		logrus.Infof("AggregateData %d %s 生成完毕，耗时 %s", groupID, date, latency)
 	}()
 
-	startDay, err := time.ParseInLocation(
-		"2006-01-02",
-		date,
-		time.Local,
-	)
-	if err != nil {
-		return nil, nil, err
-	}
-
 	// 群聊日从凌晨4点开始
 	start := time.Date(
-		startDay.Year(),
-		startDay.Month(),
-		startDay.Day(),
+		date.Year(),
+		date.Month(),
+		date.Day(),
 		4, 0, 0, 0,
 		time.Local,
 	)
 
-	end := start.Add(24 * time.Hour)
+	end := start.Add(duration)
 
 	// 1. 拉取当天所有消息
 	var messages []GroupMessage
-	err = a.db.
+	err := a.db.
 		Where(
 			"group_id = ? AND created_at >= ? AND created_at < ?",
 			groupID,

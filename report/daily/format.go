@@ -66,7 +66,7 @@ func formatMessage(msg GroupMessage, ump map[int64]User) string {
 		content = string([]rune(content)[:100]) + "..."
 	}
 	// [5-15 11:11] 某某: XXX
-	builder.WriteString(fmt.Sprintf("[%s] (%d) [%s]", msg.CreatedAt.Format("01-02 15:04"), u.UserId, action))
+	builder.WriteString(fmt.Sprintf("[%d] [%s] [%d] [%s]", msg.MsgID, msg.CreatedAt.Format("01-02 15:04"), u.UserId, action))
 	if content != "" {
 		builder.WriteString(fmt.Sprintf(": %s", content))
 	}
