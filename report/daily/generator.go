@@ -311,9 +311,9 @@ func (g *Generator) buildPrompt(r *AggregateData, ump map[int64]User) Prompts {
 
 	prompts.UserPrompt = fmt.Sprintf(userPrompt, builder.String())
 
-	prompts.GoldenPrompt = commonHeader + goldenPrompt
+	prompts.GoldenPrompt = header + goldenPrompt
 
-	prompts.QualityPrompt = commonHeader + qualityPrompt
+	prompts.QualityPrompt = header + qualityPrompt
 
 	return prompts
 
