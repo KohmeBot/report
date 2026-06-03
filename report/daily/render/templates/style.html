@@ -1,265 +1,307 @@
 {{define "style"}}
 <style>
-/* ============ 基础 / 纸张 ============ */
+/* 想要更浓的手写味：把手写中文字体（站酷快乐体 ZCOOL KuaiLe / 霞鹜文楷 LXGW WenKai）
+   放在字体栈最前；缺字体时降级到 Noto Sans CJK，依旧清晰易读。
+   下面这行在联网渲染时可直接拉到站酷快乐体；离线渲染请仍按注释自带字体。 */
+
+
+/* ============ 调色盘 / 蜡笔抖动滤镜 ============ */
+:root{
+  --ink:#4A3A2E;
+  --pink:#FF8FB3; --pink-d:#FF5E97; --pink-l:#FFD7E6;
+  --sky:#5BB8E8;  --sky-d:#2E8FCB;  --sky-l:#CFEBFB;
+  --grape:#A78BE0;--grape-d:#7E5FC8;--grape-l:#E7DCFB;
+  --yellow:#FFD23F;--yellow-l:#FFE9A0;
+  --mint:#5FC9A0; --mint-d:#33A37C; --mint-l:#CCF3E2;
+  --coral:#FF7A59;--coral-d:#E55435;
+  --paper:#FEF5E1; --card:#FFFCF3;
+
+  /* 蜡笔抖动：把直边掰歪，做出「手抖描边」 */
+  --wob:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'><filter id='w'><feTurbulence type='fractalNoise' baseFrequency='0.016 0.022' numOctaves='2' seed='6' result='n'/><feDisplacementMap in='SourceGraphic' in2='n' scale='2.4' xChannelSelector='R' yChannelSelector='G'/></filter></svg>#w");
+  --wob2:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'><filter id='w2'><feTurbulence type='fractalNoise' baseFrequency='0.02 0.03' numOctaves='3' seed='14' result='n'/><feDisplacementMap in='SourceGraphic' in2='n' scale='4.2'/></filter></svg>#w2");
+
+  /* 蜡笔颗粒 / 纸张噪点（叠 multiply，做不均匀上色） */
+  --grain:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='90' height='90'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='90' height='90' filter='url(%23g)' opacity='0.6'/></svg>");
+}
+
 * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 html, body { margin: 0; padding: 0; }
+
+/* ============ 纸张 + 海量涂鸦背景 ============ */
 body {
-  background:
-    radial-gradient(circle at 20% 8%, rgba(255,210,63,.18), transparent 38%),
-    radial-gradient(circle at 85% 30%, rgba(91,184,232,.16), transparent 40%),
-    radial-gradient(circle at 50% 92%, rgba(255,143,179,.18), transparent 42%),
-    #FDF3E2;
-  /* 想要更浓的手写味：自带一款手写中文字体（如 站酷快乐体 ZCOOL KuaiLe / 霞鹜文楷 LXGW WenKai）
-     放在字体栈最前；缺字体时降级到 Noto Sans CJK，依旧清晰易读。 */
-  font-family: "ZCOOL KuaiLe","LXGW WenKai","Noto Sans CJK SC","Noto Sans CJK HK",
-               "PingFang SC","Microsoft YaHei", sans-serif;
-  color: #43382E;
-  -webkit-font-smoothing: antialiased;
+    background:
+
+             /* 角落大涂鸦：爱心 / 星星 / 笑脸云 / 小花 */
+            url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='52' height='50'><path d='M26 46 C2 28 5 9 14 9 C20 9 26 16 26 16 C26 16 32 9 38 9 C47 9 50 28 26 46 Z' fill='hotpink' stroke='%234A3A2E' stroke-width='3' stroke-linejoin='round'/></svg>") no-repeat 3% 5%,
+            url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='50' height='50'><path d='M25 3 L31 18 L47 19 L34 29 L39 46 L25 36 L11 46 L16 29 L3 19 L19 18 Z' fill='gold' stroke='%234A3A2E' stroke-width='2.8' stroke-linejoin='round'/></svg>") no-repeat 95% 8%,
+            url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='78' height='50'><path d='M17 42 C4 42 4 27 17 27 C15 12 36 10 39 22 C53 15 67 27 57 36 C66 38 63 49 53 47 L21 47 C19 47 17 45 17 42 Z' fill='white' stroke='%234A3A2E' stroke-width='3'/><circle cx='28' cy='34' r='2.4' fill='%234A3A2E'/><circle cx='44' cy='34' r='2.4' fill='%234A3A2E'/><path d='M31 39 Q36 44 41 39' fill='none' stroke='%234A3A2E' stroke-width='2.2' stroke-linecap='round'/><circle cx='23' cy='38' r='3' fill='pink' opacity='.8'/><circle cx='49' cy='38' r='3' fill='pink' opacity='.8'/></svg>") no-repeat 92% 66%,
+            url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='52' height='52'><g stroke='%234A3A2E' stroke-width='2.6'><circle cx='26' cy='12' r='9' fill='plum'/><circle cx='40' cy='26' r='9' fill='plum'/><circle cx='26' cy='40' r='9' fill='plum'/><circle cx='12' cy='26' r='9' fill='plum'/></g><circle cx='26' cy='26' r='8' fill='gold' stroke='%234A3A2E' stroke-width='2.6'/></svg>") no-repeat 4% 92%,
+            url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='44' height='44'><path d='M22 3 C24 16 28 20 41 22 C28 24 24 28 22 41 C20 28 16 24 3 22 C16 20 20 16 22 3 Z' fill='skyblue' stroke='%234A3A2E' stroke-width='2'/></svg>") no-repeat 50% 2%,
+                /* 平铺小涂鸦：星点 / 心 / 闪 / 圈圈 */
+            url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='230' height='230'><g opacity='.9'><path d='M30 40 C18 30 20 18 27 18 C31 18 34 23 34 23 C34 23 37 18 41 18 C48 18 50 30 34 42 Z' fill='%23FFB7D0' stroke='%234A3A2E' stroke-width='1.6'/><path d='M180 30 l3 8 8 1 -6 5 2 8 -7 -5 -7 5 2 -8 -6 -5 8 -1 Z' fill='%23FFE066' stroke='%234A3A2E' stroke-width='1.4'/><path d='M120 90 C122 100 124 102 134 104 C124 106 122 108 120 118 C118 108 116 106 106 104 C116 102 118 100 120 90Z' fill='%23A7D8F5' stroke='%234A3A2E' stroke-width='1.2'/><circle cx='60' cy='150' r='6' fill='none' stroke='%23B79BEB' stroke-width='2.4'/><path d='M150 165 q10 -12 20 0 t20 0' fill='none' stroke='%237FE0BE' stroke-width='2.4' stroke-linecap='round'/><path d='M40 200 l3 7 7 1 -5 5 1 7 -6 -4 -6 4 1 -7 -5 -5 7 -1Z' fill='%23C9B6F0' stroke='%234A3A2E' stroke-width='1.2'/><circle cx='200' cy='190' r='4' fill='%23FF9FBE'/><path d='M200 100 l0 -10 M195 95 l10 0' stroke='%23FFCF4D' stroke-width='2.4' stroke-linecap='round'/></g></svg>") repeat,
+                /* 梦幻彩色光斑 */
+            radial-gradient(circle at 18% 10%, rgba(255,210,63,.28), transparent 34%),
+            radial-gradient(circle at 86% 24%, rgba(91,184,232,.24), transparent 36%),
+            radial-gradient(circle at 12% 64%, rgba(167,139,224,.22), transparent 36%),
+            radial-gradient(circle at 88% 86%, rgba(255,143,179,.26), transparent 36%),
+            radial-gradient(circle at 50% 50%, rgba(95,201,160,.16), transparent 50%),
+            var(--paper);
+            radial-gradient(circle at 20% 8%, rgba(255,210,63,.18), transparent 38%),
+            radial-gradient(circle at 85% 30%, rgba(91,184,232,.16), transparent 40%),
+            radial-gradient(circle at 50% 92%, rgba(255,143,179,.18), transparent 42%),
+            #FDF3E2;
+    /* 想要更浓的手写味：自带一款手写中文字体（如 站酷快乐体 ZCOOL KuaiLe / 霞鹜文楷 LXGW WenKai）
+       放在字体栈最前；缺字体时降级到 Noto Sans CJK，依旧清晰易读。 */
+    font-family: "ZCOOL KuaiLe","LXGW WenKai","Noto Sans CJK SC","Noto Sans CJK HK",
+    "PingFang SC","Microsoft YaHei", sans-serif;
+    color: #43382E;
+    -webkit-font-smoothing: antialiased;
 }
+
 .page { width: 480px; margin: 0 auto; padding: 18px 16px 30px; position: relative; }
+/* 纸张颗粒 */
 .page::before {
   content:""; position:absolute; inset:0; pointer-events:none; z-index:0; opacity:.5;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2'/><feColorMatrix type='saturate' values='0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)' opacity='0.45'/></svg>");
+  background-image: var(--grain);
   mix-blend-mode: multiply;
+}
+/* 页面里再撒一层近内容的小涂鸦 */
+.page::after{
+  content:""; position:absolute; inset:0; pointer-events:none; z-index:0; opacity:.85;
+  background:
+    url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='30' height='30'><path d='M15 4 l2 6 6 1 -4 4 1 6 -5 -3 -5 3 1 -6 -4 -4 6 -1Z' fill='%23FFD23F' stroke='%234A3A2E' stroke-width='1.4'/></svg>") no-repeat 8% 72%,
+    url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='28' height='26'><path d='M14 23 C2 14 4 6 9 6 C12 6 14 10 14 10 C14 10 16 6 19 6 C24 6 26 14 14 23Z' fill='%23FF8FB3' stroke='%234A3A2E' stroke-width='1.6'/></svg>") no-repeat 94% 44%,
+    url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='26' height='26'><path d='M13 3 C15 11 15 11 23 13 C15 15 15 15 13 23 C11 15 11 15 3 13 C11 11 11 11 13 3Z' fill='%23A7D8F5' stroke='%234A3A2E' stroke-width='1.4'/></svg>") no-repeat 90% 12%;
 }
 .page > * { position: relative; z-index: 1; }
 
 /* ============ 头像（图片 / 首字母兜底）& 行内胶囊 ============ */
-.gd-av { border-radius:50%; border:2.3px solid #43382E; display:inline-block; box-sizing:border-box;
-  vertical-align:middle; object-fit:cover; }
+.gd-av { border-radius:50%; border:2.6px solid var(--ink); display:inline-block; box-sizing:border-box;
+  vertical-align:middle; object-fit:cover; box-shadow:1.5px 2px 0 rgba(74,58,46,.18); }
 .gd-av-fb { text-align:center; color:#fff; font-weight:900; }
-.gd-chip { display:inline-flex; align-items:center; vertical-align:middle; background:#FFF1DC;
-  border:1.6px solid #C9A878; border-radius:20px; padding:1px 8px 1px 2px; margin:1px 3px 1px 0;
-  font-size:12px; font-weight:700; color:#6b4f2e; }
-.gd-chip-av { width:18px; height:18px; border-radius:50%; border:1.3px solid #43382E; margin-right:4px;
+.gd-chip { display:inline-flex; align-items:center; vertical-align:middle; background:var(--yellow-l);
+  border:1.8px solid var(--ink); border-radius:20px; padding:1px 9px 1px 2px; margin:1px 3px 1px 0;
+  font-size:12px; font-weight:700; color:#6b4f2e; box-shadow:1px 1.5px 0 rgba(74,58,46,.12); }
+.gd-chip-av { width:18px; height:18px; border-radius:50%; border:1.5px solid var(--ink); margin-right:4px;
   flex:none; object-fit:cover; box-sizing:border-box; }
 .gd-chip-fb { display:inline-block; text-align:center; line-height:16px; color:#fff; font-size:10px; font-weight:900; }
 .gd-chip-n { line-height:1; }
 
-/* 参与者：比正文胶囊更小更轻，当作「元信息」呈现，并与正文隔断 */
+/* 参与者：作为「元信息」呈现，弱化并与正文用波浪线隔断 */
 .topic-contrib {
     display:flex; flex-wrap:wrap; align-items:center;
     gap:4px;
     margin:2px 0 8px 34px;
     padding-bottom:9px;
-    border-bottom:none;                 /* 去掉原来的 dashed */
-    background-image:url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='300'%20height='8'%20preserveAspectRatio='none'%3E%3Cpath%20d='M2%204%20C30%202%2055%206%2090%203.5%20S150%206%20185%203%20S250%202%20298%204.5'%20fill='none'%20stroke='%23C9A878'%20stroke-width='1.8'%20stroke-linecap='round'/%3E%3C/svg%3E");
+    border-bottom:none;
+    background-image:url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='300'%20height='8'%20preserveAspectRatio='none'%3E%3Cpath%20d='M2%204%20C30%202%2055%206%2090%203.5%20S150%206%20185%203%20S250%202%20298%204.5'%20fill='none'%20stroke='%23E0A8C8'%20stroke-width='2'%20stroke-linecap='round'/%3E%3C/svg%3E");
     background-repeat:no-repeat;
     background-size:100% 8px;
     background-position:left bottom;
 }
-
-/* 仅命中参与者胶囊；.topic-detail 里的引用胶囊不受影响 */
 .topic-contrib-label {
-    font-size:10px;        /* 收小，作为小标注 */
-    font-weight:600;       /* 别太重 */
-    color:#b09a72;         /* 调淡，退到背景 */
-    margin-right:6px;
-    flex:none;             /* flex 容器里不被压缩 */
+    font-size:10px; font-weight:600; color:#c79fb6; margin-right:6px; flex:none;
 }
 .topic-contrib .gd-chip {
-    margin:0;
-    font-size:10px;        /* 再小一档，明显低于正文 13px */
-    font-weight:500;       /* 关键：去掉 bold，从 700 降到 500 */
-    padding:0 7px 0 2px;
-    border-radius:16px;
-    background:#FBF4E6;
-    border:1px solid #E3D2B0;
-    color:#9b8157;         /* 颜色也调淡一点，进一步退到背景 */
+    margin:0; font-size:10px; font-weight:500; padding:0 7px 0 2px; border-radius:16px;
+    background:#FBEEF4; border:1.4px solid #ECCBE0; color:#a87ca0; box-shadow:none;
 }
-.topic-contrib .gd-chip-av {
-    width:15px; height:15px;
-    border-width:1px;                     /* 头像描边同步收细 */
-    margin-right:3px;
-}
-.topic-contrib .gd-chip-fb {
-    line-height:13px;                     /* 15px 头像减去两侧 1px 边框 ≈ 13px */
-    font-size:9px;
-}
+.topic-contrib .gd-chip-av { width:15px; height:15px; border-width:1px; margin-right:3px; }
+.topic-contrib .gd-chip-fb { line-height:13px; font-size:9px; }
 
-/* ============ 通用手绘卡片 ============ */
-.card { background:#FFFDF6; border:2.5px solid #43382E;
+/* ============ 通用蜡笔卡片 ============ */
+.card {
+  background:var(--card);
+  background-image: var(--grain);
+  background-blend-mode: multiply;
+  border:none; position:relative; z-index:2;
   border-radius:255px 14px 225px 16px / 16px 225px 18px 255px;
-  box-shadow:3px 4px 0 rgba(67,56,46,.13); padding:16px 16px 18px; margin:0 0 20px; position:relative; }
-.card.b-coral { border-color:#E0623F; box-shadow:3px 4px 0 rgba(224,98,63,.16); }
-.card.b-mint  { border-color:#3FA882; box-shadow:3px 4px 0 rgba(63,168,130,.16);
+  box-shadow:3px 5px 0 rgba(74,58,46,.14);
+  padding:18px 16px 20px; margin:0 0 22px;
+
+}
+/* 蜡笔抖动描边（独立图层，正文不被扭曲） */
+.card::before{
+  content:""; position:absolute; inset:-3px; z-index:-1; pointer-events:none;
+  border:3px solid var(--ink); border-radius:inherit;
+  filter:var(--wob);
+}
+.card.b-coral::before{ border-color:var(--coral-d); }
+.card.b-coral{ box-shadow:3px 5px 0 rgba(229,84,53,.16); }
+.card.b-mint::before { border-color:var(--mint-d); }
+.card.b-mint  { box-shadow:3px 5px 0 rgba(51,163,124,.16);
   border-radius:14px 255px 16px 225px / 225px 18px 255px 16px; }
-.card.b-sky   { border-color:#3F94C8; box-shadow:3px 4px 0 rgba(63,148,200,.16);
+.card.b-sky::before  { border-color:var(--sky-d); }
+.card.b-sky   { box-shadow:3px 5px 0 rgba(46,143,203,.16);
   border-radius:225px 16px 255px 14px / 18px 255px 16px 225px; }
-.card.b-grape { border-color:#8568C0; box-shadow:3px 4px 0 rgba(133,104,192,.16); }
-.card.b-pink  { border-color:#E06A92; box-shadow:3px 4px 0 rgba(224,106,146,.16);
+.card.b-grape::before{ border-color:var(--grape-d); }
+.card.b-grape { box-shadow:3px 5px 0 rgba(126,95,200,.16); }
+.card.b-pink::before { border-color:var(--pink-d); }
+.card.b-pink  { box-shadow:3px 5px 0 rgba(255,94,151,.16);
   border-radius:16px 225px 14px 255px / 255px 16px 225px 18px; }
 
-.tape { position:absolute; width:64px; height:22px; opacity:.72; box-shadow:0 1px 2px rgba(0,0,0,.07);
-  background: repeating-linear-gradient(45deg, rgba(255,255,255,.35) 0 5px, transparent 5px 10px), #FFD23F; }
-.tape.tl { top:-9px; left:24px; transform:rotate(-7deg); }
-.tape.tr { top:-9px; right:24px; transform:rotate(6deg); background-color:#7FD6F0; }
+/* 胶带（蜡笔抖动边缘） */
+.tape { position:absolute; width:66px; height:23px; opacity:.78; z-index:3;
+  box-shadow:0 1px 2px rgba(0,0,0,.08); filter:var(--wob);
+  background: repeating-linear-gradient(45deg, rgba(255,255,255,.4) 0 5px, transparent 5px 10px), var(--yellow); }
+.tape.tl { top:-10px; left:24px; transform:rotate(-7deg); }
+.tape.tr { top:-10px; right:24px; transform:rotate(6deg); background-color:#9CE0F2; }
 
 /* 板块标题贴纸 */
-.tab { display:inline-block; background:#FF7A59; color:#FFF8EE; font-weight:900; font-size:17px;
-  letter-spacing:1px; padding:6px 16px 8px; margin:0 0 12px; border:2.5px solid #43382E;
-  border-radius:14px 14px 14px 4px; transform:rotate(-1.6deg); box-shadow:2px 3px 0 rgba(67,56,46,.2); }
-.tab.t-mint { background:#5FC9A0; } .tab.t-sky { background:#5BB8E8; }
-.tab.t-grape{ background:#A78BE0; } .tab.t-pink{ background:#FF8FB3; }
-.tab .ico { margin-right:5px; }
+.tab { position:relative; display:inline-block; background:var(--coral); color:#FFF8EE; font-weight:900;
+  font-size:17px; letter-spacing:1px; padding:7px 16px 9px; margin:0 0 14px; border:2.8px solid var(--ink);
+  border-radius:14px 14px 14px 4px; transform:rotate(-1.8deg); box-shadow:2px 3px 0 rgba(74,58,46,.22);
+  filter:var(--wob);z-index: 2; }
+.tab::after{ content:""; position:absolute; right:-13px; top:-12px; width:22px; height:22px; filter:none;
+  background:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='22' height='22'><path d='M11 1 C13 9 13 9 21 11 C13 13 13 13 11 21 C9 13 9 13 1 11 C9 9 9 9 11 1Z' fill='%23FFD23F' stroke='%234A3A2E' stroke-width='1.6'/></svg>") no-repeat center/contain; }
+.tab.t-mint { background:var(--mint); } .tab.t-sky { background:var(--sky); }
+.tab.t-grape{ background:var(--grape); } .tab.t-pink{ background:var(--pink); }
+.tab .ico { margin-right:5px; filter:none; }
 
 /* ============ 头部标题 ============ */
-.hero { text-align:center; margin:4px 0 22px; position:relative; }
-.hero .ribbon { display:inline-block; transform:rotate(-3.2deg); position:relative; }
-.hero h1 { font-size:31px; line-height:1.18; font-weight:900; margin:0; color:#3A2F26;
-  position:relative; z-index:2; padding:2px 6px; }
-.hero h1 .hl { background:linear-gradient(transparent 56%, #FFD23F 56% 92%, transparent 92%); padding:0 2px; }
-.hero h1 .c1{color:#E0623F;} .hero h1 .c2{color:#3FA882;} .hero h1 .c3{color:#3F94C8;} .hero h1 .c4{color:#E06A92;}
-.hero .date { display:inline-block; margin-top:10px; font-size:12px; font-weight:700; color:#6B5D4F;
-  background:#FFF8EE; border:2px solid #43382E; border-radius:20px; padding:3px 12px 4px; transform:rotate(1.4deg); }
-.hero .gname { display:block; font-size:13px; color:#8a7b6b; margin-top:6px; font-weight:700; }
+.hero { text-align:center; margin:6px 0 24px; position:relative; z-index: 2;}
+.hero .ribbon { display:inline-block; transform:rotate(-3deg); position:relative; }
+.hero h1 { font-size:32px; line-height:1.2; font-weight:900; margin:0; color:#3A2F26;
+  position:relative; z-index:2; padding:2px 6px; text-shadow:2px 2px 0 #fff; }
+.hero h1 .hl { background:linear-gradient(transparent 54%, var(--yellow) 54% 92%, transparent 92%); padding:0 2px; }
+.hero h1 .c1{color:var(--coral-d);} .hero h1 .c2{color:var(--mint-d);}
+.hero h1 .c3{color:var(--sky-d);} .hero h1 .c4{color:var(--pink-d);}
+.hero .date { display:inline-block; margin-top:12px; font-size:12px; font-weight:700; color:#6B5D4F;
+  background:#FFF8EE; border:2.2px solid var(--ink); border-radius:20px; padding:3px 13px 4px;
+  transform:rotate(1.6deg); box-shadow:1.5px 2px 0 rgba(74,58,46,.15); filter:var(--wob); }
+.hero .gname { display:block; font-size:13px; color:#9a7da9; margin-top:7px; font-weight:700; }
 .doodle-star { position:absolute; font-size:20px; }
 
 /* ============ 数据统计 ============ */
 .stats-grid { display:flex; flex-wrap:wrap; margin:-5px; }
 .stat { width:50%; padding:5px; }
-.stat-inner { background:#FFF8EE; border:2.2px dashed #43382E; border-radius:16px; padding:9px 10px;
-  display:flex; align-items:center; }
-.stat-inner .em { font-size:24px; width:38px; height:38px; line-height:38px; text-align:center;
-  border-radius:50%; margin-right:9px; flex:none; }
-.stat .num { font-size:21px; font-weight:900; line-height:1; }
+.stat-inner { position:relative; z-index:2; background:#FFF8EE; border:2.4px dashed var(--ink);
+  border-radius:16px; padding:10px 10px; display:flex; align-items:center; }
+.stat .num { font-size:22px; font-weight:900; line-height:1; color:#3A2F26; }
 .stat .lbl { font-size:11.5px; color:#7d6e5e; font-weight:700; margin-top:2px; }
-.e-coral{background:#FFE2D6;} .e-mint{background:#D6F2E7;} .e-sky{background:#D8EEFB;} .e-pink{background:#FCDDE8;}
-.highlight-box { margin-top:10px; background:#FFEFC2; border:2.5px solid #43382E; border-radius:16px;
-  padding:10px 12px; display:flex; align-items:center; justify-content:space-between; transform:rotate(-.6deg); }
+/* 蜡笔颗粒上色的图标圆 */
+.stat-inner .em { font-size:24px; width:40px; height:40px; line-height:40px; text-align:center;
+  border-radius:50%; margin-right:9px; flex:none; border:2px solid var(--ink);
+  background-image: var(--grain); background-blend-mode:multiply; box-shadow:1.5px 2px 0 rgba(74,58,46,.12);
+  filter:var(--wob); }
+.e-coral{background-color:#FFD3C2;} .e-mint{background-color:#CCF3E2;}
+.e-sky{background-color:#CFEBFB;} .e-pink{background-color:#FFD7E6;}
+
+.highlight-box { position:relative; z-index:2; margin-top:12px; background:var(--yellow-l);
+  border:2.8px solid var(--ink); border-radius:16px; padding:11px 13px; display:flex; align-items:center;
+  justify-content:space-between; transform:rotate(-.8deg); box-shadow:2px 3px 0 rgba(74,58,46,.14); }
+.highlight-box::after{ content:""; position:absolute; left:-12px; bottom:-10px; width:26px; height:24px;
+  background:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='26' height='24'><path d='M13 22 C2 13 4 5 9 5 C12 5 13 9 13 9 C13 9 14 5 17 5 C22 5 24 13 13 22Z' fill='%23FF5E97' stroke='%234A3A2E' stroke-width='2'/></svg>") no-repeat center/contain; }
 .highlight-box .ht-l .t { font-size:12px; font-weight:800; color:#9a7b2e; }
-.highlight-box .ht-l .v { font-size:23px; font-weight:900; color:#E0623F; letter-spacing:1px; }
+.highlight-box .ht-l .v { font-size:24px; font-weight:900; color:var(--coral-d); letter-spacing:1px; }
 .highlight-box .ht-r { text-align:right; font-size:11px; font-weight:700; color:#7d6e5e; max-width:46%; }
-.highlight-box .ht-r b { display:block; color:#3FA882; font-size:13px; }
+.highlight-box .ht-r b { display:block; color:var(--mint-d); font-size:13px; }
 
 /* ============ 24h 活跃 ============ */
-.chart { display:flex; align-items:flex-end; height:130px; padding:0 2px; margin-top:6px; border-bottom:3px solid #43382E; }
+.chart { display:flex; align-items:flex-end; height:132px; padding:0 2px; margin-top:6px;
+  border-bottom:3.4px solid var(--ink); position:relative; }
 .bar-col { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; }
-.bar { width:72%; min-height:3px; border:1.6px solid #43382E; border-bottom:none; border-radius:6px 6px 0 0;
-  background:linear-gradient(#FFB03B,#FF7A59); }
-.bar.peak { background:linear-gradient(#FF6FA0,#E0623F); }
+.bar { width:74%; min-height:3px; border:2px solid var(--ink); border-bottom:none; border-radius:7px 7px 0 0;
+  background:linear-gradient(#FFC34D,var(--coral)); background-image: var(--grain), linear-gradient(#FFC34D,var(--coral));
+  background-blend-mode:multiply,normal; filter:var(--wob); }
+.bar.peak { background:linear-gradient(#FF9FC0,var(--pink-d));
+  background-image: var(--grain), linear-gradient(#FF9FC0,var(--pink-d)); background-blend-mode:multiply,normal; }
 .axis { display:flex; margin-top:5px; }
 .axis span { flex:1; text-align:center; font-size:8.5px; color:#9a8b78; font-weight:700; }
 
 /* ============ 话题 ============ */
-.topic { margin-bottom:16px; } .topic:last-child { margin-bottom:0; }
+.topic { margin-bottom:18px; z-index: 2;} .topic:last-child { margin-bottom:0; }
 .topic-head { display:flex; align-items:center; margin-bottom:6px; }
-.topic-no { width:26px; height:26px; flex:none; margin-right:8px; background:#FFD23F; color:#43382E;
-  border:2.2px solid #43382E; border-radius:50%; font-weight:900; font-size:13px; text-align:center;
-  line-height:24px; transform:rotate(-6deg); }
-.topic-title { font-size:16px; font-weight:900; color:#3A2F26; border-bottom:3px solid #FFD23F; padding-bottom:1px; }
-.topic-contrib { display:flex; flex-wrap:wrap; align-items:center; margin:2px 0 5px 34px; }
-.topic-detail { font-size:13px; line-height:1.7; color:#5a4d40; margin-left:34px; }
+.topic-no { width:28px; height:28px; flex:none; margin-right:8px; background:var(--yellow); color:var(--ink);
+  border:2.4px solid var(--ink); border-radius:50%; font-weight:900; font-size:13px; text-align:center;
+  line-height:24px; transform:rotate(-6deg); box-shadow:1.5px 2px 0 rgba(74,58,46,.16); filter:var(--wob); }
+.topic-title { font-size:16px; font-weight:900; color:#3A2F26; padding-bottom:2px;
+  background:linear-gradient(transparent 70%, var(--yellow) 70% 96%, transparent 96%); }
+.topic-detail { font-size:13px; line-height:1.75; color:#5a4d40; margin-left:34px; }
 
 /* ============ 群友画像 ============ */
-.portraits { display:flex; flex-wrap:wrap; margin:-6px; }
+.portraits { display:flex; flex-wrap:wrap; margin:-6px;z-index: 2; }
 .portrait { width:50%; padding:6px; }
-.portrait-inner { background:#FFF8EE; border:2.5px solid #43382E; border-radius:18px; padding:12px 11px 13px;
-  height:100%; position:relative; box-shadow:2px 3px 0 rgba(67,56,46,.1); }
-.portrait:nth-child(4n+1) .portrait-inner{ transform:rotate(-1deg); }
-.portrait:nth-child(4n+2) .portrait-inner{ transform:rotate(.8deg); }
-.portrait:nth-child(4n+3) .portrait-inner{ transform:rotate(1deg); }
-.portrait:nth-child(4n)   .portrait-inner{ transform:rotate(-.8deg); }
+.portrait-inner { position:relative; z-index:0; background:#FFF8EE; background-image:var(--grain);
+  background-blend-mode:multiply; border:none; border-radius:18px; padding:12px 11px 13px; height:100%;
+  box-shadow:2px 3px 0 rgba(74,58,46,.12); }
+.portrait-inner::before{ content:""; position:absolute; inset:-2.6px; z-index:-1; pointer-events:none;
+  border:2.6px solid var(--ink); border-radius:inherit; filter:var(--wob); }
+.portrait:nth-child(4n+1) .portrait-inner{ transform:rotate(-1.2deg); }
+.portrait:nth-child(4n+2) .portrait-inner{ transform:rotate(1deg); }
+.portrait:nth-child(4n+3) .portrait-inner{ transform:rotate(1.2deg); }
+.portrait:nth-child(4n)   .portrait-inner{ transform:rotate(-1deg); }
 .p-top { display:flex; align-items:center; margin-bottom:7px; }
-.p-top .gd-av { width:42px; height:42px; margin-right:8px; flex:none; }
+.p-top .gd-av { width:44px; height:44px; margin-right:8px; flex:none; }
 .p-meta { flex:1; min-width:0; }
-.p-name { font-size:14px; font-weight:900; line-height:1.15; color:#3A2F26;
-    word-break:break-all; }
+.p-name { font-size:14px; font-weight:900; line-height:1.15; color:#3A2F26; word-break:break-all; }
 .p-mbti { display:inline-block; margin-top:3px; font-size:9.5px; font-weight:800; color:#fff;
-  background:#A78BE0; border-radius:8px; padding:1px 6px; letter-spacing:.5px; }
+  background:var(--grape); border:1.6px solid var(--ink); border-radius:8px; padding:1px 6px; letter-spacing:.5px;
+  filter:var(--wob); }
 .stamp {
-    flex:none; align-self:flex-start;  /* 永远钉在顶部那个角 */
-    margin-left:auto; transform:rotate(6deg); white-space:nowrap;
-    color:#D8443B; font-size:11px; font-weight:900; padding:2px 7px;
-    letter-spacing:.5px; border:2px solid #D8443B; border-radius:6px;
-    box-shadow:0 0 0 2px #FFF8EE, 0 0 0 3.6px #D8443B; opacity:.92;
-}
-
-.p-reason { font-size:11.5px; line-height:1.65; color:#5a4d40; }
+    flex:none; align-self:flex-start; margin-left:auto; transform:rotate(7deg); white-space:nowrap;
+    color:#D8443B; font-size:11px; font-weight:900; padding:2px 7px; letter-spacing:.5px;
+    border:2.2px solid #D8443B; border-radius:6px;
+    box-shadow:0 0 0 2px #FFF8EE, 0 0 0 3.8px #D8443B; opacity:.92; filter:var(--wob); }
+.p-reason { font-size:11.5px; line-height:1.7; color:#5a4d40; }
 
 /* ============ 群友金句 ============ */
-.quote { margin-bottom:20px; display:flex; align-items:flex-start; } .quote:last-child{ margin-bottom:0; }
+.quote { margin-bottom:22px; display:flex; align-items:flex-start;z-index: 2; } .quote:last-child{ margin-bottom:0; }
 .quote.right { flex-direction:row-reverse; }
-.quote .gd-av { width:38px; height:38px; flex:none; }
+.quote .gd-av { width:40px; height:40px; flex:none; }
 .quote.left .gd-av { margin-right:9px; } .quote.right .gd-av{ margin-left:9px; }
 .q-body { max-width:78%; } .quote.right .q-body{ text-align:right; }
 .q-name { font-size:11px; font-weight:800; color:#7d6e5e; margin-bottom:3px; }
-.bubble { display:inline-block; text-align:left; position:relative; font-size:13.5px; line-height:1.55;
-  font-weight:700; color:#3A2F26; padding:9px 13px; border:2.3px solid #43382E; border-radius:16px;
-  box-shadow:2px 2px 0 rgba(67,56,46,.1); }
-.quote.left .bubble { background:#FFF1DC; border-radius:4px 16px 16px 16px; }
-.quote.right .bubble{ background:#D8EEFB; border-radius:16px 4px 16px 16px; }
+.bubble { position:relative; z-index:0; display:inline-block; text-align:left; font-size:13.5px; line-height:1.6;
+  font-weight:700; color:#3A2F26; padding:10px 13px; box-shadow:2px 3px 0 rgba(74,58,46,.1); }
+.bubble::before{ content:""; position:absolute; inset:-2.4px; z-index:-1; pointer-events:none;
+  border:2.4px solid var(--ink); border-radius:inherit; filter:var(--wob); }
+.quote.left .bubble { background:#FFEFD6; border-radius:5px 16px 16px 16px; }
+.quote.right .bubble{ background:var(--sky-l); border-radius:16px 5px 16px 16px; }
 .q-meta { margin-top:5px; font-size:10.5px; color:#9a8b78; font-weight:700; } .quote.right .q-meta{ text-align:right; }
-.q-reason { display:inline-block; margin-top:5px; font-size:10.5px; line-height:1.5; color:#8a6a2e;
-  background:#FFF6D6; border:1.6px dashed #D6B24a; border-radius:10px; padding:3px 9px; font-weight:700; transform:rotate(-.6deg); }
+.q-reason { display:inline-block; margin-top:6px; font-size:10.5px; line-height:1.55; color:#8a6a2e;
+  background:#FFF3CC; border:1.8px dashed #D6A84a; border-radius:10px; padding:3px 9px; font-weight:700;
+  transform:rotate(-.8deg); }
 
 /* 金句点评中的用户胶囊 */
-.q-user{
-    display:inline-flex;
-    align-items:center;
-    vertical-align:baseline;
-
-    margin:0 1px;
-
-    color:#A16A00;
-    font-weight:800;
-}
-
-.q-user-av{
-    width:16px;
-    height:16px;
-
-    border-radius:50%;
-    object-fit:cover;
-
-    margin-right:4px;
-
-    position:relative;
-    top:-0.5px;
-}
-
-.q-user-fb{
-    display:inline-flex;
-    align-items:center;
-    justify-content:center;
-
-    color:#fff;
-    font-size:.72em;
-    font-weight:900;
-}
-
-.q-user-name{
-    padding:0 2px;
-    border-bottom:1px dashed rgba(214,178,74,.7);
-}
+.q-user{ display:inline-flex; align-items:center; vertical-align:baseline; margin:0 1px;
+  color:#C76A00; font-weight:800; }
+.q-user-av{ width:16px; height:16px; border-radius:50%; object-fit:cover; margin-right:4px;
+  position:relative; top:-0.5px; border:1.2px solid var(--ink); box-sizing:border-box; }
+.q-user-fb{ display:inline-flex; align-items:center; justify-content:center; color:#fff; font-size:.72em; font-weight:900; }
+.q-user-name{ padding:0 2px; border-bottom:1.4px dashed rgba(214,168,74,.8); }
 
 /* ============ 群聊质量 ============ */
-.q-banner { text-align:center; margin-bottom:14px; }
-.q-banner .qt { font-size:18px; font-weight:900; color:#8568C0;
-  background:linear-gradient(transparent 60%, #E6DBFB 60%); display:inline; padding:0 4px; }
+.q-banner { text-align:center; margin-bottom:16px; }
+.q-banner .qt { font-size:19px; font-weight:900; color:var(--grape-d);
+  background:linear-gradient(transparent 58%, var(--grape-l) 58% 94%, transparent 94%); display:inline; padding:0 5px; }
 .q-banner .qsub { display:block; font-size:12px; color:#7d6e5e; font-weight:700; margin-top:6px; }
-.dim { margin-bottom:11px; }
-.dim-head { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:3px; }
+.dim { margin-bottom:12px; z-index: 2; }
+.dim-head { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px; }
 .dim-name { font-size:13px; font-weight:900; color:#3A2F26; }
-.dim-pct { font-size:13px; font-weight:900; color:#8568C0; }
-.dim-track { height:14px; background:#EFE6D4; border:2px solid #43382E; border-radius:10px; overflow:hidden; }
-.dim-fill { height:100%; border-radius:8px 0 0 8px; background:repeating-linear-gradient(45deg,#A78BE0 0 7px,#B79FE6 7px 14px); }
+.dim-pct { font-size:13px; font-weight:900; color:var(--grape-d); }
+.dim-track { position:relative; z-index:0; height:16px; background:#EFE6D4; border:2.2px solid var(--ink);
+  border-radius:10px; overflow:hidden; filter:var(--wob); }
+.dim-fill { height:100%; border-radius:8px 0 0 8px;
+  background:repeating-linear-gradient(45deg,var(--grape) 0 7px,#BBA4EC 7px 14px);
+  background-image: var(--grain), repeating-linear-gradient(45deg,var(--grape) 0 7px,#BBA4EC 7px 14px);
+  background-blend-mode:multiply,normal; }
 .dim-comment { font-size:11px; color:#6b5d4f; font-weight:700; margin-top:3px; }
-.ai-summary { margin-top:14px; display:flex; align-items:flex-start; }
-.ai-summary .gd-av { width:38px; height:38px; margin-right:9px; flex:none; }
-.ai-summary .bubble { background:#EFE9FB; border-radius:4px 16px 16px 16px; max-width:80%; }
-.ai-name { font-size:11px; font-weight:800; color:#8568C0; margin-bottom:3px; }
+.ai-summary { margin-top:16px; display:flex; align-items:flex-start;z-index: 2; }
+.ai-summary .gd-av { width:40px; height:40px; margin-right:9px; flex:none; }
+.ai-summary .bubble { background:var(--grape-l); border-radius:5px 16px 16px 16px; max-width:80%; }
+.ai-name { font-size:11px; font-weight:800; color:var(--grape-d); margin-bottom:3px; }
 
 /* ============ 空状态 ============ */
 .gd-empty { text-align:center; color:#a89a87; font-size:13px; font-weight:700; padding:14px 6px; }
 .gd-empty .em { font-size:30px; display:block; margin-bottom:4px; }
 
 /* ============ 尾注 ============ */
-.footer { text-align:center; margin-top:6px; padding:14px; }
-.footer .stamp-foot { display:inline-block; transform:rotate(-2deg); border:2.5px dashed #43382E;
-  border-radius:16px; padding:9px 16px; background:#FFF8EE; }
-.footer .ft-main { font-size:12.5px; font-weight:900; color:#43382E; }
-.footer .ft-sub { font-size:10.5px; color:#8a7b6b; font-weight:700; margin-top:3px; }
-.footer .hearts { margin-top:8px; font-size:15px; letter-spacing:3px; }
+.footer { text-align:center; margin-top:8px; padding:14px; z-index: 2; }
+.footer .stamp-foot { position:relative; z-index:0; display:inline-block; transform:rotate(-2.2deg);
+  border:2.8px dashed var(--ink); border-radius:16px; padding:10px 18px; background:#FFF8EE; }
+.footer .ft-main { font-size:12.5px; font-weight:900; color:var(--ink); }
+.footer .ft-sub { font-size:10.5px; color:#9a7da9; font-weight:700; margin-top:3px; }
+.footer .hearts { margin-top:9px; font-size:16px; letter-spacing:4px; }
 </style>
 {{end}}
