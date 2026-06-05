@@ -7,7 +7,7 @@
       {{avatar $g.Sender 38}}
       <div class="q-body">
         <div class="q-name">{{avatarName $g.Sender}}</div>
-        <div class="bubble">{{$g.Content}}</div>
+        <div class="bubble">{{newline $g.Content}}</div>
         {{if hasAny $g.Time}}<div class="q-meta">🕐 {{$g.Time}}</div>{{end}}
         {{if hasAny $g.Reason}}<div class="q-reason">✨ 入选理由: {{reason $g.Reason}}</div>{{end}}
       </div>

@@ -147,7 +147,7 @@ func (p *PluginReport) startSendTicker() {
 				report, err := p.GetReport(group, groupName, yesterday)
 				if err != nil {
 					p.env.Error(ctx, err)
-					return
+					continue
 				}
 				switch {
 				case p.conf.OnlyText:

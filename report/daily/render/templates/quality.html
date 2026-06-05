@@ -8,22 +8,22 @@
       {{if hasAny .Subtitle}}<span class="qsub">{{.Subtitle}}</span>{{end}}
     </div>
     {{end}}
-    {{range .Dimensions}}
-    <div class="dim">
-      <div class="dim-head"><span class="dim-name">{{.Name}}</span><span class="dim-pct">{{pct .Percentage}}%</span></div>
-      <div class="dim-track"><div class="dim-fill" style="width:{{pct .Percentage}}%"></div></div>
-      {{if hasAny .Comment}}<div class="dim-comment">{{.Comment}}</div>{{end}}
+  {{range .Dimensions}}
+  <div class="dim">
+    <div class="dim-head"><span class="dim-name">{{.Name}}</span><span class="dim-pct">{{pct .Percentage}}%</span></div>
+    <div class="dim-track"><div class="dim-fill" style="width:{{pct .Percentage}}%"></div></div>
+    {{if hasAny .Comment}}<div class="dim-comment">{{reason .Comment}}</div>{{end}}
+  </div>
+  {{end}}
+  {{if hasAny .Summary}}
+  <div class="ai-summary">
+    {{avatar .AIUser 38}}
+    <div>
+      <div class="ai-name">{{avatarName .AIUser}}锐评</div>
+      <div class="bubble">{{reason .Summary}}</div>
     </div>
-    {{end}}
-    {{if hasAny .Summary}}
-    <div class="ai-summary">
-      {{avatar .AIUser 38}}
-      <div>
-        <div class="ai-name">{{avatarName .AIUser}}锐评</div>
-        <div class="bubble">{{.Summary}}</div>
-      </div>
-    </div>
-    {{end}}
+  </div>
+  {{end}}
   {{else}}
     {{template "empty" "今天还没有群聊质量分析~"}}
   {{end}}

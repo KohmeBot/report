@@ -297,16 +297,17 @@ body {
 .quote.right .bubble{ background:var(--sky-l); border-radius:16px 5px 16px 16px; }
 .q-meta { margin-top:5px; font-size:10.5px; color:#9a8b78; font-weight:700; } .quote.right .q-meta{ text-align:right; }
 .q-reason { display:inline-block; margin-top:6px; font-size:10.5px; line-height:1.55; color:#8a6a2e;
-  background:#FFF3CC; border:1.8px dashed #D6A84a; border-radius:10px; padding:3px 9px; font-weight:700;
-  transform:rotate(-.8deg); }
+    background:#FFF3CC; border:1.8px dashed #D6A84a; border-radius:10px; padding:3px 9px; font-weight:700;
+    transform:rotate(-.8deg); text-align:left; }
 
 /* 金句点评中的用户胶囊 */
-.q-user{ display:inline-flex; align-items:center; vertical-align:baseline; margin:0 1px;
-  color:#C76A00; font-weight:800; }
-.q-user-av{ width:16px; height:16px; border-radius:50%; object-fit:cover; margin-right:4px;
-  position:relative; top:-0.5px; border:1.2px solid var(--ink); box-sizing:border-box; }
+.q-user{ display:inline-flex; align-items:center; vertical-align:middle; line-height:1;
+    margin:0 1px; color:#C76A00; font-weight:800; }
+.q-user-av{ width:1.5em; height:1.5em; border-radius:50%; object-fit:cover; margin-right:4px;
+    border:1.2px solid var(--ink); box-sizing:border-box; flex:none; }
 .q-user-fb{ display:inline-flex; align-items:center; justify-content:center; color:#fff; font-size:.72em; font-weight:900; }
-.q-user-name{ padding:0 2px; border-bottom:1.4px dashed rgba(214,168,74,.8); }
+.q-user-name{ padding:0 1px; }
+
 
 /* ============ 群聊质量 ============ */
 .q-banner { text-align:center; margin-bottom:16px; }
@@ -328,6 +329,8 @@ body {
 .ai-summary .gd-av { width:40px; height:40px; margin-right:9px; flex:none; }
 .ai-summary .bubble { background:var(--grape-l); border-radius:5px 16px 16px 16px; max-width:80%; }
 .ai-name { font-size:11px; font-weight:800; color:var(--grape-d); margin-bottom:3px; }
+.b-grape .q-user { background:var(--grape-l); }
+.b-grape .q-user-name { color:var(--grape-d); }
 
 /* ============ 空状态 ============ */
 .gd-empty { text-align:center; color:#a89a87; font-size:13px; font-weight:700; padding:14px 6px; }

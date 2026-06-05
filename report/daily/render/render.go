@@ -94,7 +94,7 @@ func RenderToImage(data *ReportData, chromeAddr string, opts ...Option) ([]byte,
 		return nil, err
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 
 	if chromeAddr != "" {
@@ -141,6 +141,7 @@ func (v *View) funcMap() template.FuncMap {
 		"pct":        pct, // 百分比去尾零
 		"hasAny":     func(s string) bool { return strings.TrimSpace(s) != "" },
 		"avatarName": v.displayName, // 兜底昵称
+		"newline":    newline,
 	}
 }
 
@@ -256,48 +257,45 @@ func (v *View) userReasonChipHTML(u int64) template.HTML {
 	))
 }
 
-var refRe = regexp.MustCompile(`\[(\d+)\]`)
+// refRe 匹配用户引用:[123]、(123)、<123>,以及裸数字 123。
+// 括号形式放前面,裸数字放最后,保证 [123] 整体命中而不是只命中里面的 123。
+var refRe = regexp.MustCompile(`\[\d+\]|\(\d+\)|<\d+>|\d+`)
 
-// detailHTML 把话题详情里的 [用户ID] 替换成用户胶囊，其余文本做转义。
-func (v *View) detailHTML(detail string) template.HTML {
-
+// renderRefs 把文本里的用户引用替换成胶囊,其余文本做 HTML 转义。
+// chip 决定渲染成哪种胶囊(详情胶囊 / reason 胶囊)。
+func (v *View) renderRefs(text string, chip func(id int64) template.HTML) template.HTML {
 	var b strings.Builder
 	last := 0
-	for _, loc := range refRe.FindAllStringSubmatchIndex(detail, -1) {
-		b.WriteString(html.EscapeString(detail[last:loc[0]]))
-		id, _ := strconv.ParseInt(detail[loc[2]:loc[3]], 10, 64)
-		nickName, _ := v.GetUserData(id)
+	for _, loc := range refRe.FindAllStringIndex(text, -1) {
+		// 先把匹配之前的普通文本转义输出。
+		b.WriteString(html.EscapeString(text[last:loc[0]]))
+
+		token := text[loc[0]:loc[1]]
+		// 把可能存在的括号去掉,只留数字。ParseInt 同时挡掉超长(溢出 int64)的怪数字。
+		id, err := strconv.ParseInt(strings.Trim(token, "[]()<>"), 10, 64)
+
+		var nickName string
+		if err == nil {
+			nickName, _ = v.GetUserData(id)
+		}
 		if nickName != "" {
-			b.WriteString(string(v.userChipHTML(id)))
+			b.WriteString(string(chip(id)))
 		} else {
-			// 找不到对应用户就保留原文（已转义）
-			b.WriteString(html.EscapeString(detail[loc[0]:loc[1]]))
+			// 找不到对应用户(或裸数字不是真实 ID)就保留原文(已转义)。
+			b.WriteString(html.EscapeString(token))
 		}
 		last = loc[1]
 	}
-	b.WriteString(html.EscapeString(detail[last:]))
+	b.WriteString(html.EscapeString(text[last:]))
 	return template.HTML(b.String())
 }
 
-// reasonHTML 把reason里的 [用户ID] 替换成用户胶囊，其余文本做转义。
-func (v *View) reasonHTML(reason string) template.HTML {
+func (v *View) detailHTML(detail string) template.HTML {
+	return v.renderRefs(detail, v.userChipHTML)
+}
 
-	var b strings.Builder
-	last := 0
-	for _, loc := range refRe.FindAllStringSubmatchIndex(reason, -1) {
-		b.WriteString(html.EscapeString(reason[last:loc[0]]))
-		id, _ := strconv.ParseInt(reason[loc[2]:loc[3]], 10, 64)
-		nickName, _ := v.GetUserData(id)
-		if nickName != "" {
-			b.WriteString(string(v.userReasonChipHTML(id)))
-		} else {
-			// 找不到对应用户就保留原文（已转义）
-			b.WriteString(html.EscapeString(reason[loc[0]:loc[1]]))
-		}
-		last = loc[1]
-	}
-	b.WriteString(html.EscapeString(reason[last:]))
-	return template.HTML(b.String())
+func (v *View) reasonHTML(reason string) template.HTML {
+	return v.renderRefs(reason, v.userReasonChipHTML)
 }
 
 func maxCount(slots []HourSlot) int {
@@ -325,4 +323,8 @@ func pct(f float64) string {
 	s := strconv.FormatFloat(f, 'f', 1, 64)
 	s = strings.TrimSuffix(s, ".0")
 	return s
+}
+
+func newline(s string) template.HTML {
+	return template.HTML(strings.ReplaceAll(s, "\n", "<br>"))
 }
