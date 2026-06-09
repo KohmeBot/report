@@ -1,6 +1,7 @@
 package report
 
 import (
+	"fmt"
 	"github.com/fumiama/cron"
 	"github.com/kohmebot/plugin/v2"
 	"github.com/kohmebot/report/report/daily"
@@ -131,6 +132,23 @@ func (p *PluginReport) GetReport(group int64, groupName string, t time.Time) (da
 	return report, err
 }
 
+func (p *PluginReport) sendReport(ctx *zero.Ctx, t time.Time, group int64) error {
+	groupName := ctx.GetGroupInfo(group, false).Name
+	report, err := p.GetReport(group, groupName, t)
+	if err != nil {
+		return err
+	}
+	switch {
+	case p.conf.OnlyText:
+		ctx.SendGroupMessage(group, report.Text)
+	case len(report.Image) > 0:
+		ctx.SendGroupMessage(group, message.ImageBytes(report.Image))
+	default:
+		ctx.SendGroupMessage(group, report.Text)
+	}
+	return nil
+}
+
 func (p *PluginReport) startSendTicker() {
 	c := cron.New()
 	var id cron.EntryID
@@ -141,28 +159,38 @@ func (p *PluginReport) startSendTicker() {
 			iter = slices.Values(p.conf.SendGroups)
 		}
 		time.Sleep(2 * time.Second)
+		var failGroups []int64
 		p.env.UseBot(func(ctx *zero.Ctx) {
 			for group := range iter {
-				groupName := ctx.GetGroupInfo(group, false).Name
-				report, err := p.GetReport(group, groupName, yesterday)
+				err := p.sendReport(ctx, yesterday, group)
 				if err != nil {
-					p.env.Error(ctx, err)
-					continue
+					p.env.Error(ctx, fmt.Errorf("sendReport %d err:%w", group, err))
+					failGroups = append(failGroups, group)
 				}
-				switch {
-				case p.conf.OnlyText:
-					ctx.SendGroupMessage(group, report.Text)
-				case len(report.Image) > 0:
-					ctx.SendGroupMessage(group, message.ImageBytes(report.Image))
-				default:
-					ctx.SendGroupMessage(group, report.Text)
-				}
-
 				time.Sleep(3 * time.Second)
 			}
 		})
 
-		logrus.Infof("Next 将在 %s 发送Report", c.Entry(id).Next)
+		p.env.UseBot(func(ctx *zero.Ctx) {
+			for _, group := range failGroups {
+				var retry int
+			RETRY:
+				for {
+					if retry >= 3 {
+						p.env.Error(ctx, fmt.Errorf("sendReport %d retry fail", group))
+						break RETRY
+					}
+					time.Sleep(3*time.Second + time.Duration(retry*3)*time.Second)
+					err := p.sendReport(ctx, yesterday, group)
+					if err != nil {
+						p.env.Error(ctx, fmt.Errorf("sendReport %d retry err:%w", group, err))
+					}
+
+					retry++
+				}
+			}
+		})
+
 	})
 	if err != nil {
 		logrus.Errorf("开启定时发送失败 %s", err)
