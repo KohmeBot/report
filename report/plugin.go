@@ -71,5 +71,5 @@ func (p *PluginReport) Name() string {
 }
 
 func (p *PluginReport) Version() string {
-	return "v0.1.17"
+	return "v0.1.18"
 }
