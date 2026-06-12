@@ -97,7 +97,7 @@ const userPrompt = `
 
 [
 {
-"user": 123456789,
+"user": (int)123456789,
 "title": "称号",
 "mbti": "MBTI类型",
 "reason": "请描述该群友获得该称号的原因，为什么能获得该称号，简短表达，100字以内"
@@ -105,7 +105,7 @@ const userPrompt = `
 ]
 
 
-注意：请以纯 JSON 格式返回，不要包含 markdown 代码块标记。
+注意：user 字段必须填写用户ID，不允许填写昵称，请以纯 JSON 格式返回，不要包含 markdown 代码块标记。
 `
 
 type UserResult struct {
