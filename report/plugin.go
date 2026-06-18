@@ -21,6 +21,10 @@ func NewPlugin() plugin.Plugin {
 	return new(PluginReport)
 }
 
+func (p *PluginReport) ConfigModel() any {
+	return new(Config)
+}
+
 func (p *PluginReport) OnInit(engine plugin.Engine, env plugin.Env) error {
 	var err error
 	p.env = env
@@ -71,5 +75,5 @@ func (p *PluginReport) Name() string {
 }
 
 func (p *PluginReport) Version() string {
-	return "v0.1.19"
+	return "v0.1.20"
 }
