@@ -150,9 +150,18 @@ func (p *PluginReport) sendReport(ctx *zero.Ctx, t time.Time, group int64) error
 }
 
 func (p *PluginReport) startSendTicker() {
-	c := cron.New()
 	var id cron.EntryID
-	id, err := c.AddFunc("0 9 * * *", func() {
+	var cronStr string
+	t, err := time.Parse("15:04", p.conf.SendTime)
+	if err != nil {
+		logrus.Errorf("parse time err %s", err)
+		cronStr = "0 9 * * *"
+	} else {
+		cronStr = fmt.Sprintf("%d %d * * *", t.Minute(), t.Hour())
+	}
+	c := cron.New()
+
+	id, err = c.AddFunc(cronStr, func() {
 		yesterday := Yesterday()
 		iter := p.env.Groups().RangeGroup()
 		if p.conf.SendGroups != nil {

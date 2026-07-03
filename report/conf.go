@@ -20,6 +20,9 @@ type Config struct {
 
 	// 日报标题
 	Title string `yaml:"title" jsonschema:"description=日报标题"`
+
+	// 每日发送的时间
+	SendTime string `yaml:"send_time" jsonschema:"default=09:00,description=每天定时发送日报的时间，例如09:00"`
 }
 
 func (c Config) ChromeAddr() string {
