@@ -133,6 +133,15 @@ func (p *PluginReport) GetReport(group int64, groupName string, t time.Time) (da
 }
 
 func (p *PluginReport) sendReport(ctx *zero.Ctx, t time.Time, group int64) error {
+	count, err := daily.NewAggregator(p.db).MessageCount(group, t, 24*time.Hour)
+	if err != nil {
+		return err
+	}
+	if count < p.conf.ReportMinMessageCount {
+		logrus.Infof("群%d消息数(%d)低于%d，不发送日报", group, count, p.conf.ReportMinMessageCount)
+		return nil
+	}
+
 	groupName := ctx.GetGroupInfo(group, false).Name
 	report, err := p.GetReport(group, groupName, t)
 	if err != nil {

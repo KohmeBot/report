@@ -23,6 +23,9 @@ type Config struct {
 
 	// 每日发送的时间
 	SendTime string `yaml:"send_time" jsonschema:"default=09:00,description=每天定时发送日报的时间，例如09:00"`
+
+	// 最低消息数
+	ReportMinMessageCount int64 `yaml:"report_min_message_count" jsonschema:"description=最低消息数，群消息只有高于这个数才会生成日报"`
 }
 
 func (c Config) ChromeAddr() string {

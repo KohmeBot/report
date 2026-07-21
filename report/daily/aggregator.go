@@ -6,19 +6,41 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kohmebot/chatai/chatai/chataisdk"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
 
 type Aggregator struct {
-	db       *gorm.DB
-	invoker  *chataisdk.ChatAIInvoker
-	thinking bool
+	db *gorm.DB
 }
 
-func NewAggregator(db *gorm.DB, invoker *chataisdk.ChatAIInvoker, thinking bool) *Aggregator {
-	return &Aggregator{db: db, invoker: invoker, thinking: thinking}
+func NewAggregator(db *gorm.DB) *Aggregator {
+	return &Aggregator{db: db}
+}
+
+func (a *Aggregator) MessageCount(groupID int64, date time.Time, duration time.Duration) (int64, error) {
+	// 群聊日从凌晨4点开始
+	start := time.Date(
+		date.Year(),
+		date.Month(),
+		date.Day(),
+		4, 0, 0, 0,
+		time.Local,
+	)
+
+	end := start.Add(duration)
+
+	var count int64
+	err := a.db.
+		Model(&GroupMessage{}).
+		Where(
+			"group_id = ? AND created_at >= ? AND created_at < ?",
+			groupID,
+			start,
+			end,
+		).
+		Count(&count).Error
+	return count, err
 }
 
 // Aggregate 对指定群、指定日期做全量聚合，返回DailyReport

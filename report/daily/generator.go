@@ -66,7 +66,7 @@ func (g *Generator) botUid() int64 {
 func (g *Generator) BuildPrompt(group int64, t time.Time) (Prompts, *AggregateData, error) {
 
 	// 生成日报
-	aggregator := NewAggregator(g.db, g.invoker, g.thinking)
+	aggregator := NewAggregator(g.db)
 	report, ump, err := aggregator.Aggregate(group, t, 24*time.Hour)
 	if err != nil {
 		return Prompts{}, nil, fmt.Errorf("聚合失败: %w", err)
