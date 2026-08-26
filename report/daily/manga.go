@@ -142,7 +142,7 @@ func (g *Generator) BuildManga(ts []TopicResult, users map[int64]UserImage) (str
 		return "", err
 	}
 
-	result, err := invoker.NewTextInvoker(g.invoker, g.providerManga, g.modelManga, "", false, false).DoRequest(prompt)
+	result, err := invoker.NewImageInvoker(g.invoker, g.providerManga, g.modelManga, "", false, true).DoRequest(prompt)
 	if err != nil {
 		return "", err
 	}
