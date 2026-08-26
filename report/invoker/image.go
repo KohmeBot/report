@@ -33,7 +33,7 @@ func (i *ImageInvoker) DoRequest(req string) (string, error) {
 		return "", err
 	}
 	response := new(model.Response)
-	if err := largeModel.Request(&model.Request{Content: map[string]any{"text": req}}, response); err != nil {
+	if err := largeModel.Request(&model.Request{Content: []any{map[string]any{"text": req}}}, response); err != nil {
 		return "", err
 	}
 	if response.ErrorMsg != "" {

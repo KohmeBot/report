@@ -126,6 +126,8 @@ func (g *Generator) BuildUserImages(group int64, ts []TopicResult, us []UserResu
 		}
 	})
 
+	logrus.Infof("用户印象: %v", res)
+
 	return res, nil
 
 }
