@@ -13,14 +13,18 @@ import (
 
 type JsonInvoker struct {
 	invoker  *chataisdk.ChatAIInvoker
+	provider string
+	model    string
 	system   string
 	online   bool
 	thinking bool
 }
 
-func NewJsonInvoker(invoker *chataisdk.ChatAIInvoker, system string, online bool, thinking bool) *JsonInvoker {
+func NewJsonInvoker(invoker *chataisdk.ChatAIInvoker, provider, model, system string, online bool, thinking bool) *JsonInvoker {
 	return &JsonInvoker{
 		invoker:  invoker,
+		provider: provider,
+		model:    model,
 		system:   system,
 		online:   online,
 		thinking: thinking,
@@ -33,7 +37,7 @@ func (i *JsonInvoker) DoRequest(req string, val any) error {
 	if i.system == "" {
 		largeModel, err = i.invoker.NewDefaultModel(i.online, i.thinking, true)
 	} else {
-		largeModel, err = i.invoker.NewModel(i.system, i.online, i.thinking, true)
+		largeModel, err = i.invoker.NewProviderModel(i.provider, i.model, i.system, i.online, i.thinking, true)
 	}
 
 	if err != nil {

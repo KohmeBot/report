@@ -1,8 +1,29 @@
 package report
 
-import "strings"
+import (
+	"slices"
+	"strings"
+)
+
+type MangaConfig struct {
+	// 是否生成群聊漫画
+	Enabled bool `yaml:"enabled" jsonschema:"description=是否在日报后生成并发送群聊漫画"`
+
+	// 启用漫画的群，留空代表全部群
+	Groups []int64 `yaml:"groups" jsonschema:"description=启用漫画的群|留空代表全部群"`
+
+	ProviderName string `yaml:"provider_name" jsonschema:"description=生图模型供应商"`
+	ModelName    string `yaml:"model_name" jsonschema:"description=生图模型名称"`
+}
+
+func (c MangaConfig) EnabledFor(group int64) bool {
+	return c.Enabled && (len(c.Groups) == 0 || slices.Contains(c.Groups, group))
+}
 
 type Config struct {
+	ProviderName string `yaml:"provider_name" jsonschema:"description=模型供应商"`
+	ModelName    string `yaml:"model_name" jsonschema:"description=模型名称"`
+
 	// 定时发送的群
 	SendGroups []int64 `yaml:"send_groups" jsonschema:"description=定时发送的群"`
 
@@ -26,6 +47,9 @@ type Config struct {
 
 	// 最低消息数
 	ReportMinMessageCount int64 `yaml:"report_min_message_count" jsonschema:"description=最低消息数，群消息只有高于这个数才会生成日报"`
+
+	// 群聊漫画配置
+	Manga MangaConfig `yaml:"manga" jsonschema:"description=群聊漫画配置"`
 }
 
 func (c Config) ChromeAddr() string {

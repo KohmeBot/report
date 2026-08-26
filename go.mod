@@ -5,8 +5,8 @@ go 1.26
 require (
 	github.com/chromedp/chromedp v0.15.1
 	github.com/fumiama/cron v1.3.0
-	github.com/kohmebot/chatai v0.4.18
-	github.com/kohmebot/plugin/v2 v2.0.2
+	github.com/kohmebot/chatai v1.2.5
+	github.com/kohmebot/plugin/v2 v2.0.4
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.11.1
 	github.com/wdvxdr1123/ZeroBot v1.8.2
@@ -30,8 +30,8 @@ require (
 	github.com/tidwall/gjson v1.18.0 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect
-	golang.org/x/sync v0.8.0 // indirect
-	golang.org/x/sys v0.42.0 // indirect
-	golang.org/x/text v0.19.0 // indirect
+	golang.org/x/sync v0.20.0 // indirect
+	golang.org/x/sys v0.45.0 // indirect
+	golang.org/x/text v0.37.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

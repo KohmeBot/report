@@ -25,6 +25,7 @@ import (
 type Report struct {
 	Text  string
 	Image []byte
+	Manga string
 }
 
 type Generator struct {
@@ -34,16 +35,25 @@ type Generator struct {
 	chromeAddr string
 	thinking   bool
 	online     bool
+
+	provider      string
+	model         string
+	providerManga string
+	modelManga    string
 }
 
-func NewGenerator(env plugin.Env, db *gorm.DB, invoker *chataisdk.ChatAIInvoker, chromeAddr string, thinking bool, online bool) *Generator {
+func NewGenerator(env plugin.Env, db *gorm.DB, invoker *chataisdk.ChatAIInvoker, provider, model, providerManga, modelManga, chromeAddr string, thinking bool, online bool) *Generator {
 	return &Generator{
-		env:        env,
-		db:         db,
-		invoker:    invoker,
-		chromeAddr: chromeAddr,
-		thinking:   thinking,
-		online:     online,
+		db:            db,
+		invoker:       invoker,
+		env:           env,
+		chromeAddr:    chromeAddr,
+		thinking:      thinking,
+		online:        online,
+		provider:      provider,
+		model:         model,
+		providerManga: providerManga,
+		modelManga:    modelManga,
 	}
 }
 
@@ -106,7 +116,7 @@ func (g *Generator) makeHighlightTime(hotPeriod HotPeriod) string {
 	return fmt.Sprintf("%s~%s", start, end)
 }
 
-func (g *Generator) GenerateReport(title string, group int64, groupName string, t time.Time) (Report, error) {
+func (g *Generator) GenerateReport(title string, group int64, groupName string, t time.Time, generateManga bool) (Report, error) {
 
 	prompts, data, err := g.BuildPrompt(group, t)
 	if err != nil {
@@ -128,11 +138,29 @@ func (g *Generator) GenerateReport(title string, group int64, groupName string, 
 		render.WithGeneratedAt(time.Now().Format("2006-01-02 15:04:05")),
 		render.WithUserDataGetter(g.getUserDataFunc(group)),
 	)
+	if err != nil {
+		return Report{}, err
+	}
+
+	var manga string
+	if generateManga && len(res.Topics) > 0 {
+		userImages, buildErr := g.BuildUserImages(group, res.Topics, res.UserResult)
+		if buildErr != nil {
+			logrus.Errorf("构建群%d漫画人物失败: %s", group, buildErr)
+		} else {
+			manga, buildErr = g.BuildManga(res.Topics, userImages)
+			if buildErr != nil {
+				// 漫画是日报的可选附加内容，生成失败不能阻止日报主体发送。
+				logrus.Errorf("生成群%d群聊漫画失败: %s", group, buildErr)
+			}
+		}
+	}
 
 	return Report{
 		Text:  "", // TODO 生成图片失败时，fallback为文本
 		Image: imgBytes,
-	}, err
+		Manga: manga,
+	}, nil
 }
 
 func (g *Generator) buildRenderData(title string, group int64, groupName string, data *AggregateData, res *AIResult) *render.ReportData {
@@ -260,7 +288,7 @@ func (g *Generator) getUserDataFunc(group int64) func(uid int64) (nickName strin
 }
 
 func (g *Generator) InvokeAi(prompts Prompts) (res AIResult, err error) {
-	iv := invoker.NewJsonInvoker(g.invoker, "", g.online, g.thinking)
+	iv := invoker.NewJsonInvoker(g.invoker, g.provider, g.model, "", g.online, g.thinking)
 
 	if err = iv.DoRequest(prompts.TopicPrompt, &res.Topics); err != nil {
 		return

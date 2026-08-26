@@ -4,12 +4,14 @@ import "github.com/kohmebot/chatai/chatai/chataisdk"
 
 type TextInvoker struct {
 	invoker  *chataisdk.ChatAIInvoker
+	provider string
+	model    string
 	system   string
 	online   bool
 	thinking bool
 }
 
-func NewTextInvoker(invoker *chataisdk.ChatAIInvoker, system string, online bool, thinking bool) *TextInvoker {
+func NewTextInvoker(invoker *chataisdk.ChatAIInvoker, provider, model, system string, online bool, thinking bool) *TextInvoker {
 	return &TextInvoker{
 		invoker:  invoker,
 		system:   system,
@@ -19,7 +21,7 @@ func NewTextInvoker(invoker *chataisdk.ChatAIInvoker, system string, online bool
 }
 
 func (i *TextInvoker) DoRequest(req string) (string, error) {
-	largeModel, err := i.invoker.NewModel(i.system, i.online, i.thinking, false)
+	largeModel, err := i.invoker.NewProviderModel(i.provider, i.model, i.system, i.online, i.thinking, false)
 
 	if err != nil {
 		return "", err

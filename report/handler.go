@@ -119,15 +119,23 @@ func (p *PluginReport) OnBuild(engine plugin.Engine) {
 		default:
 			ctx.Send(report.Text)
 		}
+		if report.Manga != "" {
+			ctx.Send(message.Image(report.Manga))
+		}
 
 	})
 }
 
 func (p *PluginReport) GetReport(group int64, groupName string, t time.Time) (daily.Report, error) {
 
-	g := daily.NewGenerator(p.env, p.db, p.invoker, p.conf.ChromeAddr(), p.conf.Thinking, p.conf.Online)
+	g := daily.NewGenerator(p.env, p.db, p.invoker,
+		p.conf.ProviderName,
+		p.conf.ModelName,
+		p.conf.Manga.ProviderName,
+		p.conf.Manga.ModelName,
+		p.conf.ChromeAddr(), p.conf.Thinking, p.conf.Online)
 
-	report, err := g.GenerateReport(p.conf.Title, group, groupName, t)
+	report, err := g.GenerateReport(p.conf.Title, group, groupName, t, p.conf.Manga.EnabledFor(group))
 
 	return report, err
 }
@@ -154,6 +162,9 @@ func (p *PluginReport) sendReport(ctx *zero.Ctx, t time.Time, group int64) error
 		ctx.SendGroupMessage(group, message.ImageBytes(report.Image))
 	default:
 		ctx.SendGroupMessage(group, report.Text)
+	}
+	if report.Manga != "" {
+		ctx.SendGroupMessage(group, message.Image(report.Manga))
 	}
 	return nil
 }
