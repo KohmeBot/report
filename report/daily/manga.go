@@ -4,8 +4,9 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"regexp"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/kohmebot/report/report/invoker"
@@ -71,7 +72,7 @@ type mangaTopic struct {
 	Detail       string   `json:"detail"`
 }
 
-func (g *Generator) BuildUserImages(group int64, ts []TopicResult, us []UserResult) (map[int]UserImage, error) {
+func (g *Generator) BuildUserImages(group int64, ts []TopicResult, us []UserResult) (map[int64]UserImage, error) {
 	ump := make(map[int64]struct{})
 	for _, t := range ts {
 		for _, contributor := range t.Contributors {
@@ -79,7 +80,7 @@ func (g *Generator) BuildUserImages(group int64, ts []TopicResult, us []UserResu
 		}
 	}
 
-	res := make(map[int]UserImage, len(ump))
+	res := make(map[int64]UserImage, len(ump))
 	var selfId int64
 
 	g.env.UseBot(func(ctx *zero.Ctx) {
@@ -96,6 +97,11 @@ func (g *Generator) BuildUserImages(group int64, ts []TopicResult, us []UserResu
 			}
 			if uid == selfId {
 				nickName = g.botNickName()
+			}
+
+			if nickName == "" {
+				logrus.Errorf("用户 %d 的昵称为空", uid)
+				continue
 			}
 
 			img := UserImage{
@@ -116,7 +122,7 @@ func (g *Generator) BuildUserImages(group int64, ts []TopicResult, us []UserResu
 					break
 				}
 			}
-			res[int(uid)] = img
+			res[uid] = img
 		}
 	})
 
@@ -126,7 +132,7 @@ func (g *Generator) BuildUserImages(group int64, ts []TopicResult, us []UserResu
 
 // BuildManga 把全部话题组织成同一张“人物介绍 + N 格分镜”漫画。
 // ImageInvoker 的不同后端可能返回裸 URL、Markdown 图片或 data URL，返回前统一转换为 OneBot 可发送的图片地址。
-func (g *Generator) BuildManga(ts []TopicResult, users map[int]UserImage) (string, error) {
+func (g *Generator) BuildManga(ts []TopicResult, users map[int64]UserImage) (string, error) {
 	if len(ts) == 0 {
 		return "", nil
 	}
@@ -148,12 +154,12 @@ func (g *Generator) BuildManga(ts []TopicResult, users map[int]UserImage) (strin
 	return image, nil
 }
 
-func buildMangaPrompt(ts []TopicResult, users map[int]UserImage) (string, error) {
-	ids := make([]int, 0, len(users))
+func buildMangaPrompt(ts []TopicResult, users map[int64]UserImage) (string, error) {
+	ids := make([]int64, 0, len(users))
 	for id := range users {
 		ids = append(ids, id)
 	}
-	sort.Ints(ids)
+	slices.Sort(ids)
 
 	characters := make([]mangaUser, 0, len(ids))
 	for _, id := range ids {
@@ -173,7 +179,7 @@ func buildMangaPrompt(ts []TopicResult, users map[int]UserImage) (string, error)
 	for _, topic := range ts {
 		participants := make([]string, 0, len(topic.Contributors))
 		for _, uid := range topic.Contributors {
-			if u, ok := users[int(uid)]; ok {
+			if u, ok := users[uid]; ok {
 				participants = append(participants, u.NickName)
 			}
 		}

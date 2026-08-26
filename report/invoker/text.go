@@ -14,6 +14,8 @@ type TextInvoker struct {
 func NewTextInvoker(invoker *chataisdk.ChatAIInvoker, provider, model, system string, online bool, thinking bool) *TextInvoker {
 	return &TextInvoker{
 		invoker:  invoker,
+		provider: provider,
+		model:    model,
 		system:   system,
 		online:   online,
 		thinking: thinking,
