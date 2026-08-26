@@ -40,6 +40,7 @@ type Generator struct {
 	model         string
 	providerManga string
 	modelManga    string
+	mangaStyle    string
 }
 
 func NewGenerator(env plugin.Env, db *gorm.DB, invoker *chataisdk.ChatAIInvoker, provider, model, providerManga, modelManga, chromeAddr string, thinking bool, online bool) *Generator {
@@ -54,7 +55,16 @@ func NewGenerator(env plugin.Env, db *gorm.DB, invoker *chataisdk.ChatAIInvoker,
 		model:         model,
 		providerManga: providerManga,
 		modelManga:    modelManga,
+		mangaStyle:    defaultMangaStyle,
 	}
+}
+
+// SetMangaStyle 设置生图阶段使用的外部风格，不让文本模型参与决定画风。
+func (g *Generator) SetMangaStyle(style string) *Generator {
+	if strings.TrimSpace(style) != "" {
+		g.mangaStyle = strings.TrimSpace(style)
+	}
+	return g
 }
 
 func (g *Generator) botNickName() string {

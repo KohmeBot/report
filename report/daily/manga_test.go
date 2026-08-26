@@ -5,27 +5,78 @@ import (
 	"testing"
 )
 
-func TestBuildMangaPromptContainsAllTopicsAndCharacters(t *testing.T) {
+func TestBuildMangaBriefPromptContainsAllSourceData(t *testing.T) {
 	topics := []TopicResult{
 		{Topic: "早餐之争", Contributors: []int64{2, 1}, Detail: "两人讨论甜咸豆花。"},
 		{Topic: "线上故障", Contributors: []int64{1}, Detail: "服务恢复。"},
 	}
-	users := map[int]UserImage{
+	users := map[int64]UserImage{
 		2: {Id: 2, NickName: "小乙", Sex: "female", Title: "评论家"},
 		1: {Id: 1, NickName: "小甲", Sex: "male", Mbti: "INTJ"},
 	}
 
-	prompt, err := buildMangaPrompt(topics, users)
+	prompt, err := buildMangaBriefPrompt(topics, users)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"恰好 2 个场景分镜", "早餐之争", "线上故障", "小甲", "小乙"} {
+	for _, want := range []string{"topics数量必须恰好为2", "早餐之争", "线上故障", "小甲", "小乙", "最多5人"} {
 		if !strings.Contains(prompt, want) {
 			t.Fatalf("prompt does not contain %q", want)
 		}
 	}
-	if strings.Index(prompt, `"id": 1`) > strings.Index(prompt, `"id": 2`) {
+	if strings.Index(prompt, `"id":1`) > strings.Index(prompt, `"id":2`) {
 		t.Fatal("characters are not emitted in stable id order")
+	}
+}
+
+func TestNormalizeMangaBriefAndBuildImagePrompt(t *testing.T) {
+	topics := []TopicResult{
+		{Topic: "早餐之争", Contributors: []int64{2, 1}, Detail: "很长的原始详情不应进入生图提示词。"},
+		{Topic: "线上故障", Contributors: []int64{1}, Detail: "另一段很长的原始详情。"},
+	}
+	users := map[int64]UserImage{
+		1: {Id: 1, NickName: "小甲"},
+		2: {Id: 2, NickName: "小乙"},
+	}
+	brief := mangaBrief{
+		Characters: []mangaBriefCharacter{
+			{ID: 2, Appearance: "银色短发，圆眼镜，蓝色卫衣，星形发夹"},
+			{ID: 1, Appearance: "黑色卷发，方脸，橙色夹克，红围巾"},
+		},
+		Topics: []mangaBriefTopic{
+			{Index: 1, ParticipantIDs: []int64{2, 1}, Summary: "两人各举一碗豆花争论甜咸。"},
+			{Index: 2, ParticipantIDs: []int64{1}, Summary: "小甲看到服务恢复，松了一口气。"},
+		},
+	}
+
+	if err := normalizeMangaBrief(&brief, topics, users); err != nil {
+		t.Fatal(err)
+	}
+	prompt, err := buildMangaPrompt(brief, "水彩报纸漫画")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"水彩报纸漫画", "恰好画2格", "早餐之争", "线上故障", "小甲", "小乙"} {
+		if !strings.Contains(prompt, want) {
+			t.Fatalf("image prompt does not contain %q", want)
+		}
+	}
+	for _, unwanted := range []string{"很长的原始详情", "MBTI", "groupTitle", "participant_ids"} {
+		if strings.Contains(prompt, unwanted) {
+			t.Fatalf("image prompt unexpectedly contains %q", unwanted)
+		}
+	}
+}
+
+func TestNormalizeMangaBriefRejectsTooManyCharacters(t *testing.T) {
+	users := make(map[int64]UserImage)
+	brief := mangaBrief{Topics: []mangaBriefTopic{{Index: 1, ParticipantIDs: []int64{}, Summary: "摘要"}}}
+	for id := int64(1); id <= 6; id++ {
+		users[id] = UserImage{Id: id, NickName: "用户"}
+		brief.Characters = append(brief.Characters, mangaBriefCharacter{ID: id, Appearance: "不同外观"})
+	}
+	if err := normalizeMangaBrief(&brief, []TopicResult{{Topic: "话题"}}, users); err == nil {
+		t.Fatal("expected too many characters to be rejected")
 	}
 }
 
@@ -39,7 +90,6 @@ func TestNormalizeImageResult(t *testing.T) {
 		{name: "markdown", result: "已生成：![漫画](https://example.com/manga.png)", want: "https://example.com/manga.png"},
 		{name: "data url", result: "data:image/png;base64,aGVsbG8=", want: "base64://aGVsbG8="},
 	}
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := normalizeImageResult(tt.result)
