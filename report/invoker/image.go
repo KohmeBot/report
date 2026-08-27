@@ -43,6 +43,10 @@ func (i *ImageInvoker) DoRequest(req string) (string, error) {
 		return "", errors.New(response.ErrorMsg)
 	}
 
+	if response.Answer != "" {
+		return response.Answer, nil
+	}
+
 	return extractImageContent(response.Content)
 }
 

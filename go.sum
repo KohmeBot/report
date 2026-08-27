@@ -34,6 +34,7 @@ github.com/kohmebot/chatai v1.2.5 h1:dTX4HblRbTqCZvcbvs7V4WU6BdzqJIsRpFrDYePKdlQ
 github.com/kohmebot/chatai v1.2.5/go.mod h1:XoGe6+8hGRTjB6puig/RwoCUt6+XAWwvW6F4omhiHzk=
 github.com/kohmebot/chatai v1.2.7 h1:25DupU2RWy+HZpfM85E3bmwfKXKWV0BnIS17ZSc2aTs=
 github.com/kohmebot/chatai v1.2.7/go.mod h1:XoGe6+8hGRTjB6puig/RwoCUt6+XAWwvW6F4omhiHzk=
+github.com/kohmebot/chatai v1.2.10/go.mod h1:XoGe6+8hGRTjB6puig/RwoCUt6+XAWwvW6F4omhiHzk=
 github.com/kohmebot/pkg v1.0.2 h1:w+wzrdfM4uZfruos4kjkBE127nWB9n96I9J3TU6zKMs=
 github.com/kohmebot/pkg v1.0.2/go.mod h1:lBzLMdnCgnJjiEzgBRn2brSDLju0V4gvjx4AFVIJii4=
 github.com/kohmebot/plugin/v2 v2.0.2 h1:p5sqznYuJO8edDQ5EXMwQd5YYnTgbqO6fVyctQcNkt4=
