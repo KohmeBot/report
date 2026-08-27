@@ -144,6 +144,9 @@ func (g *Generator) BuildManga(ts []TopicResult, users map[int64]UserImage) (str
 	if err != nil {
 		return "", err
 	}
+
+	logrus.Infof("漫画提示词: %s", prompt)
+
 	result, err := invoker.NewImageInvoker(g.invoker, g.providerManga, g.modelManga, "", false, true).DoRequest(prompt)
 	if err != nil {
 		return "", err
