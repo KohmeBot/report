@@ -22,9 +22,9 @@ var (
 
 const defaultMangaStyle = "萌系日系Q版二维彩色漫画，2.5~3头身，大头小身，深色圆润勾线，平涂加轻赛璐璐阴影，明快柔和"
 const mangaPreferredCharacterCount = 5
-const mangaBriefMaxRunes = 800
+const defaultMangaPromptMaxLength = 550
 
-const mangaBriefSystem = `你是一位想象力旺盛的漫画编剧、导演和分镜师。只输出完整漫画的自然语言绘制说明，不要输出JSON或Markdown代码块。`
+const mangaBriefSystem = `你是一位想象力旺盛的日系二次元漫画编剧、导演和分镜师。只输出完整漫画的自然语言绘制说明，不要输出JSON或Markdown代码块。`
 
 const mangaBriefPrompt = `把下面的人物与话题改编成一部有完整场景、强烈动作和视觉冲击力的短篇漫画，并输出可直接交给生图模型的导演简报。
 
@@ -36,9 +36,10 @@ const mangaBriefPrompt = `把下面的人物与话题改编成一部有完整场
 5. 全部%d个话题按原顺序出现且一个不少。每个话题是一个故事段落，但可以使用一个或多个分格。具体说明明确地点和环境、可见道具、人物动作、夸张表情或肢体动作、景别/视角，以及极短的中文对白或拟声词。
 6. 自由决定画布横竖比例、分格数量与大小、跨格/破框/特写、阅读顺序、总标题/话题标题/人物昵称放在哪里。不要采用整齐角色卡或机械等高分格。
 7. 每个段落必须发生在能被画出来的具体场景中，并让人物与环境或道具发生互动。禁止空白背景下几个人并排站着或坐着聊天，禁止全篇使用同一机位，至少安排一次大幅动作、视觉冲突、追逐、跌落、喷射、爆炸式反应或同等冲击力的漫画场面。
-8. 优先保留原话题参与者，也可以让白名单中的其他人物跨话题追赶、围观、误入或承担转场，以便故事连贯。不要决定画风、媒介或渲染质感；性别unknown时不要擅自确定性别。
+8. 优先保留原话题参与者，也可以让白名单中的其他人物跨话题追赶、围观、误入或承担转场，以便故事连贯。不要决定画风、媒介或渲染质感；性别unknown时可以给他一个最符合的性别。
+9. 可以引用常见的日本漫画画法和构图
 
-请用约500字的自然语言完整描述漫画要怎么画，全文控制在450至550个字符，绝不能超过550个字符。精炼地写清总标题、故事主线、整体构图、登场人物及外观、每个话题的场景与分镜，不要解释创作过程，不要输出JSON。写完后自行核对每一个“人物ID”都来自以下白名单；如白名单为空，就不要安排任何人物出场。
+请用自然语言完整描述漫画要怎么画，全文不得超过%d个字符。精炼地写清总标题、故事主线、整体构图、登场人物及外观、每个话题的场景与分镜，不要解释创作过程，不要输出JSON。写完后自行核对每一个“人物ID”都来自以下白名单；如白名单为空，就不要安排任何人物出场。
 
 允许使用的人物ID白名单（这是唯一可信的人物来源）：
 %s
@@ -130,17 +131,17 @@ func (g *Generator) BuildManga(ts []TopicResult, users map[int64]UserImage) (str
 		return "", nil
 	}
 
-	briefRequest, err := buildMangaBriefPrompt(ts, users)
+	briefRequest, err := buildMangaBriefPrompt(ts, users, g.mangaPromptMaxLength)
 	if err != nil {
 		return "", err
 	}
 	textInvoker := invoker.NewTextInvoker(g.invoker, g.provider, g.model, mangaBriefSystem, false, false)
-	brief, err := requestMangaBrief(briefRequest, ts, users, textInvoker.DoRequest)
+	brief, err := requestMangaBrief(briefRequest, ts, users, g.mangaPromptMaxLength, textInvoker.DoRequest)
 	if err != nil {
 		return "", err
 	}
 
-	prompt, err := buildMangaPrompt(brief, g.mangaStyle, len(ts), users)
+	prompt, err := buildMangaPrompt(brief, g.mangaStyle, len(ts))
 	if err != nil {
 		return "", err
 	}
@@ -160,15 +161,16 @@ func (g *Generator) BuildManga(ts []TopicResult, users map[int64]UserImage) (str
 
 type mangaBriefRequestFunc func(string) (string, error)
 
-func requestMangaBrief(request string, ts []TopicResult, users map[int64]UserImage, doRequest mangaBriefRequestFunc) (string, error) {
+func requestMangaBrief(request string, ts []TopicResult, users map[int64]UserImage, maxLength int, doRequest mangaBriefRequestFunc) (string, error) {
 	brief, err := doRequest(request)
 	if err != nil {
 		return "", fmt.Errorf("生成漫画导演简报失败: %w", err)
 	}
-	return normalizeMangaBrief(brief, ts, users), nil
+	return normalizeMangaBrief(brief, ts, users, maxLength), nil
 }
 
-func buildMangaBriefPrompt(ts []TopicResult, users map[int64]UserImage) (string, error) {
+func buildMangaBriefPrompt(ts []TopicResult, users map[int64]UserImage, maxLength int) (string, error) {
+	maxLength = normalizedMangaPromptMaxLength(maxLength)
 	ids := make([]int64, 0, len(users))
 	for id := range users {
 		ids = append(ids, id)
@@ -193,11 +195,12 @@ func buildMangaBriefPrompt(ts []TopicResult, users map[int64]UserImage) (string,
 	if err != nil {
 		return "", fmt.Errorf("序列化漫画话题失败: %w", err)
 	}
-	return fmt.Sprintf(mangaBriefPrompt, len(topics), buildMangaCharacterWhitelist(users), characterJSON, topicJSON), nil
+	return fmt.Sprintf(mangaBriefPrompt, len(topics), maxLength, buildMangaCharacterWhitelist(users), characterJSON, topicJSON), nil
 }
 
 // normalizeMangaBrief 只记录文本简报中的可疑内容，不再因格式、人数或内容问题阻断生图。
-func normalizeMangaBrief(brief string, ts []TopicResult, users map[int64]UserImage) string {
+func normalizeMangaBrief(brief string, ts []TopicResult, users map[int64]UserImage, maxLength int) string {
+	maxLength = normalizedMangaPromptMaxLength(maxLength)
 	brief = strings.TrimSpace(brief)
 	if brief == "" {
 		logrus.Warn("漫画导演简报为空，仍继续请求生图")
@@ -226,11 +229,21 @@ func normalizeMangaBrief(brief string, ts []TopicResult, users map[int64]UserIma
 		logrus.Warn("漫画导演简报没有对应话题，仍继续生图")
 	}
 	runes := []rune(brief)
-	if len(runes) > mangaBriefMaxRunes {
-		logrus.Warnf("漫画导演简报长度为%d个字符，超过%d字符；为适配生图模型上下文将截短", len(runes), mangaBriefMaxRunes)
-		brief = string(runes[:mangaBriefMaxRunes])
+	maxLength += 250 // 允许有250字符的误差
+	if len(runes) > maxLength {
+		logrus.Warnf("漫画导演简报长度为%d个字符，超过%d字符；为适配生图模型上下文将截短", len(runes), maxLength)
+		brief = string(runes[:maxLength])
+		brief += "...<剩下的因为上下文窗口省略，你可以自由发挥>"
 	}
+
 	return brief
+}
+
+func normalizedMangaPromptMaxLength(maxLength int) int {
+	if maxLength <= 0 {
+		return defaultMangaPromptMaxLength
+	}
+	return maxLength
 }
 
 func buildMangaCharacterWhitelist(users map[int64]UserImage) string {
@@ -250,31 +263,7 @@ func buildMangaCharacterWhitelist(users map[int64]UserImage) string {
 	return strings.Join(characters, "、")
 }
 
-func buildReferencedMangaCharacterWhitelist(brief string, users map[int64]UserImage) string {
-	seen := make(map[int64]struct{})
-	characters := make([]string, 0)
-	for _, match := range mangaCharacterIDPattern.FindAllStringSubmatch(brief, -1) {
-		id, err := strconv.ParseInt(match[1], 10, 64)
-		if err != nil {
-			continue
-		}
-		u, ok := users[id]
-		if !ok {
-			continue
-		}
-		if _, duplicate := seen[id]; duplicate {
-			continue
-		}
-		seen[id] = struct{}{}
-		characters = append(characters, fmt.Sprintf("人物ID:%d（%s）", id, u.NickName))
-	}
-	if len(characters) == 0 {
-		return "无（不得画人物）"
-	}
-	return strings.Join(characters, "、")
-}
-
-func buildMangaPrompt(brief, style string, topicCount int, users map[int64]UserImage) (string, error) {
+func buildMangaPrompt(brief, style string, topicCount int) (string, error) {
 	style = strings.TrimSpace(style)
 	if style == "" {
 		style = defaultMangaStyle
@@ -283,7 +272,6 @@ func buildMangaPrompt(brief, style string, topicCount int, users map[int64]UserI
 		mangaPrompt,
 		style,
 		topicCount,
-		buildReferencedMangaCharacterWhitelist(brief, users),
 		brief,
 	), nil
 }

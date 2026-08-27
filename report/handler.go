@@ -134,7 +134,8 @@ func (p *PluginReport) GetReport(group int64, groupName string, t time.Time) (da
 		p.conf.Manga.ProviderName,
 		p.conf.Manga.ModelName,
 		p.conf.ChromeAddr(), p.conf.Thinking, p.conf.Online).
-		SetMangaStyle(p.conf.Manga.Style)
+		SetMangaStyle(p.conf.Manga.Style).
+		SetMangaPromptMaxLength(p.conf.Manga.PromptMaxLength)
 
 	report, err := g.GenerateReport(p.conf.Title, group, groupName, t, p.conf.Manga.EnabledFor(group))
 

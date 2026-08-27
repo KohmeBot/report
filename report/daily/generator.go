@@ -36,26 +36,28 @@ type Generator struct {
 	thinking   bool
 	online     bool
 
-	provider      string
-	model         string
-	providerManga string
-	modelManga    string
-	mangaStyle    string
+	provider             string
+	model                string
+	providerManga        string
+	modelManga           string
+	mangaStyle           string
+	mangaPromptMaxLength int
 }
 
 func NewGenerator(env plugin.Env, db *gorm.DB, invoker *chataisdk.ChatAIInvoker, provider, model, providerManga, modelManga, chromeAddr string, thinking bool, online bool) *Generator {
 	return &Generator{
-		db:            db,
-		invoker:       invoker,
-		env:           env,
-		chromeAddr:    chromeAddr,
-		thinking:      thinking,
-		online:        online,
-		provider:      provider,
-		model:         model,
-		providerManga: providerManga,
-		modelManga:    modelManga,
-		mangaStyle:    defaultMangaStyle,
+		db:                   db,
+		invoker:              invoker,
+		env:                  env,
+		chromeAddr:           chromeAddr,
+		thinking:             thinking,
+		online:               online,
+		provider:             provider,
+		model:                model,
+		providerManga:        providerManga,
+		modelManga:           modelManga,
+		mangaStyle:           defaultMangaStyle,
+		mangaPromptMaxLength: defaultMangaPromptMaxLength,
 	}
 }
 
@@ -63,6 +65,14 @@ func NewGenerator(env plugin.Env, db *gorm.DB, invoker *chataisdk.ChatAIInvoker,
 func (g *Generator) SetMangaStyle(style string) *Generator {
 	if strings.TrimSpace(style) != "" {
 		g.mangaStyle = strings.TrimSpace(style)
+	}
+	return g
+}
+
+// SetMangaPromptMaxLength 设置漫画导演简报的最大字符数。
+func (g *Generator) SetMangaPromptMaxLength(maxLength int) *Generator {
+	if maxLength > 0 {
+		g.mangaPromptMaxLength = maxLength
 	}
 	return g
 }

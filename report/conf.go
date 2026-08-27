@@ -15,6 +15,8 @@ type MangaConfig struct {
 	ProviderName string `yaml:"provider_name" jsonschema:"description=生图模型供应商"`
 	ModelName    string `yaml:"model_name" jsonschema:"description=生图模型名称"`
 	Style        string `yaml:"style" jsonschema:"description=漫画画风|留空使用默认日系Q版风格"`
+	// 漫画导演简报的最大字符数，留空或小于等于0时使用默认值。
+	PromptMaxLength int `yaml:"prompt_max_length" jsonschema:"default=800,description=漫画导演简报最大字符数|留空或小于等于0使用800"`
 }
 
 func (c MangaConfig) EnabledFor(group int64) bool {

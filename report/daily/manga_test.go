@@ -16,11 +16,11 @@ func TestBuildMangaBriefPromptContainsAllSourceData(t *testing.T) {
 		1: {Id: 1, NickName: "小甲", Sex: "male", Mbti: "INTJ"},
 	}
 
-	prompt, err := buildMangaBriefPrompt(topics, users)
+	prompt, err := buildMangaBriefPrompt(topics, users, 600)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"全部2个话题", "早餐之争", "线上故障", "人物ID:1（小甲）", "人物ID:2（小乙）", "没有硬性数量上限", "人物ID硬约束", "450至550个字符", "不要输出JSON", "具体场景", "禁止空白背景"} {
+	for _, want := range []string{"全部2个话题", "早餐之争", "线上故障", "人物ID:1（小甲）", "人物ID:2（小乙）", "没有硬性数量上限", "人物ID硬约束", "不得超过600个字符", "不要输出JSON", "具体场景", "禁止空白背景"} {
 		if !strings.Contains(prompt, want) {
 			t.Fatalf("prompt does not contain %q", want)
 		}
@@ -38,15 +38,15 @@ func TestNormalizeMangaBriefAndBuildImagePrompt(t *testing.T) {
 		3: {Id: 3, NickName: "未登场者"},
 	}
 	brief := "总标题《豆花引发的线上危机》。人物ID:1（小甲）和人物ID:2（小乙）从早餐店一路追到机房。"
-	got := normalizeMangaBrief("  "+brief+"  ", topics, users)
+	got := normalizeMangaBrief("  "+brief+"  ", topics, users, 600)
 	if got != brief {
 		t.Fatalf("normalized brief = %q, want %q", got, brief)
 	}
-	prompt, err := buildMangaPrompt(got, "水彩报纸漫画", len(topics), users)
+	prompt, err := buildMangaPrompt(got, "水彩报纸漫画", len(topics))
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"水彩报纸漫画", "豆花引发的线上危机", "共2个顺序话题", "早餐店", "避免空背景站排", "人物ID:1（小甲）", "人物ID:2（小乙）", "忽略简报中的其他人物"} {
+	for _, want := range []string{"水彩报纸漫画", "导演简报：" + brief, "豆花引发的线上危机", "共2个顺序话题", "早餐店", "避免空背景站排", "人物ID:1（小甲）", "人物ID:2（小乙）"} {
 		if !strings.Contains(prompt, want) {
 			t.Fatalf("image prompt does not contain %q", want)
 		}
@@ -54,21 +54,28 @@ func TestNormalizeMangaBriefAndBuildImagePrompt(t *testing.T) {
 	if strings.Contains(prompt, "未登场者") {
 		t.Fatal("image prompt should only include characters referenced by the brief")
 	}
+	if strings.Contains(prompt, "%!(EXTRA") {
+		t.Fatalf("image prompt contains a formatting artifact: %q", prompt)
+	}
+	if strings.Contains(prompt, "导演简报：无（不得画人物）") {
+		t.Fatalf("image prompt used the character whitelist as the brief: %q", prompt)
+	}
 }
 
 func TestNormalizeMangaBriefOnlyWarnsAboutUnknownCharacter(t *testing.T) {
 	brief := "人物ID:999（虚构人物）冲进画面。"
-	got := normalizeMangaBrief(brief, []TopicResult{{Topic: "话题"}}, map[int64]UserImage{1: {Id: 1, NickName: "用户"}})
+	got := normalizeMangaBrief(brief, []TopicResult{{Topic: "话题"}}, map[int64]UserImage{1: {Id: 1, NickName: "用户"}}, 600)
 	if got != brief {
 		t.Fatalf("brief should continue unchanged, got %q", got)
 	}
 }
 
 func TestNormalizeMangaBriefCapsLengthForShortImageContext(t *testing.T) {
-	brief := "人物ID:1（用户）。" + strings.Repeat("画", mangaBriefMaxRunes)
-	got := normalizeMangaBrief(brief, []TopicResult{{Topic: "话题"}}, map[int64]UserImage{1: {Id: 1, NickName: "用户"}})
-	if length := len([]rune(got)); length != mangaBriefMaxRunes {
-		t.Fatalf("brief length = %d, want %d", length, mangaBriefMaxRunes)
+	const maxLength = 123
+	brief := "人物ID:1（用户）。" + strings.Repeat("画", maxLength)
+	got := normalizeMangaBrief(brief, []TopicResult{{Topic: "话题"}}, map[int64]UserImage{1: {Id: 1, NickName: "用户"}}, maxLength)
+	if length := len([]rune(got)); length != maxLength {
+		t.Fatalf("brief length = %d, want %d", length, maxLength)
 	}
 }
 
@@ -79,7 +86,7 @@ func TestRequestMangaBriefDoesNotRetryOrLimitCharacters(t *testing.T) {
 	}
 	topics := []TopicResult{{Topic: "话题", Contributors: []int64{1}}}
 	calls := 0
-	brief, err := requestMangaBrief("原始请求", topics, users, func(request string) (string, error) {
+	brief, err := requestMangaBrief("原始请求", topics, users, defaultMangaPromptMaxLength, func(request string) (string, error) {
 		calls++
 		if request != "原始请求" {
 			t.Fatalf("request = %q", request)
