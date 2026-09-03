@@ -22,6 +22,10 @@ import (
 //go:embed templates/*.html
 var templateFS embed.FS
 
+// FullScreenshot 的 quality 为 100 时输出 PNG，否则输出 JPEG。
+// 适度压缩可以在保证文字清晰度的同时，显著减小群日报长图的发送体积。
+const reportImageJPEGQuality = 85
+
 // View 是真正喂给根模板的视图模型：业务数据 + 一些渲染期附加信息。
 type View struct {
 	Data        *ReportData
@@ -116,7 +120,7 @@ func RenderToImage(data *ReportData, chromeAddr string, opts ...Option) ([]byte,
 			return page.SetDocumentContent(frameTree.Frame.ID, htmlData).Do(ctx)
 		}),
 		chromedp.WaitReady("body"),
-		chromedp.FullScreenshot(&imgBuf, 100),
+		chromedp.FullScreenshot(&imgBuf, reportImageJPEGQuality),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("截图失败: %w", err)
